@@ -1,0 +1,420 @@
+# author='Artur Tarassow'
+# email='artur.tarassow@gmail.com'
+# version='0.5'
+# date='2017-04-02'
+
+function void prepRq (bundle *b)
+    # BDM test
+    if b.whichTest==0
+        matrix Rmat = zeros((1+b.case),b.nall)
+        if b.case == 0
+            matrix qvec = {1}
+        elif b.case == 1
+            Rmat[1,1] = 1			# restrict const
+            matrix qvec = zeros(1,1) | {1}
+        elif b.case == 2
+            Rmat[1,1] = 1			# restrict const
+            Rmat[2,2] = 1			# restrict trend
+            matrix qvec = zeros(2,1) | {1}
+        endif
+        Rmat[(1+b.case),b.ay:b.ey] = 1
+        # PSS test
+    else
+        if b.case==0
+            matrix Rmat = zeros(1+b.nx,b.nall)	# unrestr. const.
+            matrix qvec = {1} | zeros(b.nx,1)
+        elif b.case==1
+            matrix Rmat = zeros(2+b.nx,b.nall)	# restr. const
+            Rmat[1,1] = 1
+            matrix qvec = zeros(1,1) | {1} | zeros(b.nx,1)
+        elif b.case==2
+            matrix Rmat = zeros(3+b.nx,b.nall)	# restr. const + time
+            Rmat[1,1] = 1
+            Rmat[2,2] = 1
+            matrix qvec = zeros(2,1) | {1} | zeros(b.nx,1)
+        endif
+        Rmat[(1+b.case), b.ay:b.ey]=1			# for rho
+        scalar ax = b.ey+1
+        scalar ex = ax+(b.condARDL + b.pq)-1
+        loop i=(2+b.case)..(1+b.case+b.nx) -q
+            Rmat[i,ax:ex] = 1		 # Sum coefficients up
+            ax = ex+1
+            ex = ax+(b.condARDL + b.pq)-1
+        endloop
+    endif
+    b.qvec = qvec
+    b.Rmat = Rmat
+end function
+
+function void printTest (bundle *b)
+    printf "\n*****************************************************\n"
+    if b.whichTest==0
+        printf "*** BDM bootstrap t-Test based on ARDL(%d,%d) model ***\n", b.pq, b.pq
+    else
+        printf "*** PSS bootstrap F-Test based on ARDL(%d,%d) model ***\n", b.pq, b.pq
+    endif
+    printf "*****************************************************\n"
+    printf "Restriction case:\n"
+    if b.case==0
+        printf "Unrestricted constant\n"
+    elif b.case==1
+        printf "Restricted constant\n"
+    elif b.case==2
+        printf "Restricted constant and restricted trend\n"
+    endif
+    printf "Bootstrap type: "
+    if b.btype==1
+        printf "parametric\n"
+    elif b.btype==2
+        printf "non-parametric\n"
+    elif b.btype==3
+        printf "wild (uniform distrib.)\n"
+    elif b.btype==4
+        printf "wild (Rademacher distrib.)\n"
+    endif
+    printf "Bootstrap replications: %d\n", b.bootrep
+    printf "\nInitial test statistics = %.3f\n", b.teststat
+    printf "\nCritical values:\n       1pct.  \t 5pct.  \t 10pct.\n"
+    printf "%12.3f\n", b.crit'
+    printf "Bootstrap p-value = %.3f\n", b.pvboot
+    printf "Fraction of failed iterations = %.2f\n", b.failed/b.bootrep
+    printf "******************************************************\n"
+end function
+
+function void bootTest (bundle *b)
+    matrix Rmat = b.Rmat
+    matrix qvec = b.qvec
+    series Y = b.my
+    list xlist = b.mx
+    list rxlist = b.mrx
+    list lDET = b.md
+    string quiet = b.optsil
+    lags Y xlist
+    list Z = lDET xlist(b.pqmin to -b.pq) rxlist
+    matrix Xbeta = b.Zcoef
+    matrix matstat = zeros(b.bootrep,1)
+    scalar nloop=1
+    scalar failed = 0
+    scalar failstop = 0.35
+    scalar cancel = 0
+    scalar btype = b.btype
+    nrep = b.bootrep
+    loop while nloop <= nrep -q
+        series e = 0
+        drawEA (&b,&e)
+        # Simulate the null model (no long-run relationship)
+        series y_b = zeromiss(0)
+        varsimA(Y, b.rARcoef, Z, Xbeta, e, b.pq, &y_b)
+        lags y_b 1
+        # Estimate the alt model based on the the null model DGP
+        catch ols y_b lDET y_b(-1 to -b.pq) xlist(b.pqmin to -b.pq) rxlist --quiet
+        if nelem($xlist)!=cols(Rmat) || (sum($coeff[b.ay:b.ey])-1)>-0.00001
+            failed++
+            if failed/nrep >= b.failstop
+                printf "*** ERROR: %d pct. of the bootstrap iterations failed due to instability. ***\n", 100*b.failstop
+                printf "*** You should re-consider to re-specify your model. ***\n"
+                cancel=1
+                break
+            endif
+        else
+            # Run the restriction of the estimated alt model based on null model dgp
+            restrict --silent		 # H0: SUM(a_j)-1=0 --> in ECM: rho=0
+                R = Rmat
+                q = qvec
+            end restrict
+            matstat[nloop] = $test
+            nloop++
+        endif
+    endloop
+    if quiet!="--quiet"
+        printf "\n*** NOTE: %.2f pct. of the %d bootstrap iterations failed due to instability. ***\n", failed/b.bootrep, b.bootrep
+        printf "\n"
+    endif
+    b.cancel = cancel
+    if cancel==0
+        b.failed = failed
+        b.matstat = matstat
+    endif
+    # Clean up the bundle
+    delete b.ex
+    delete b.nrx
+    delete b.mx
+    delete b.nx
+    delete b.Rmat
+    delete b.Zcoef
+    delete b.qvec
+    delete b.ay
+    delete b.nall
+    delete b.ax
+    delete b.md
+    delete b.rARcoef
+    delete b.ey
+    delete b.uhat
+    delete b.mrx
+end function
+
+function void varsimA (series Y,
+                       matrix ARbeta "Coeff. vector of Y",
+                       list X "rxlist ~ xlist of exogenous (-pmin to -p)",
+                       matrix Xbeta "coeff vector of Xs",
+                       series e "resampled",
+                       int p,
+                       series *ysim)
+    # Thankfully borrowed from Jack!
+    series m = lincomb(X, Xbeta)
+    scalar T = minr(rows({e})~rows({m}))
+    if p>1
+        matrix A = ARbeta' | (I(p-1) ~ 0)
+    else
+        matrix A = ARbeta'
+    endif
+    matrix y0 = mreverse({Y}[1:p])'
+    matrix U = {e + m} ~ zeros(T, p-1)
+    matrix S = varsimul(A, U, y0)
+    S = S[,1]
+    if p>1
+        S = {Y}[1:p-1] | S
+    endif
+    series ysim = S
+end function
+
+function void drawEA (bundle *b,
+                      series *e)
+    series uhat = b.uhat
+    uhat = uhat-mean(uhat)
+    if b.btype==0
+        series e = normal(0,sd(uhat))	# parametric bootstrap
+    elif b.btype==1
+        series e = resample(uhat)		# draw from estimated residuals by resampling (may suffer from serial correl.)
+    elif b.btype==2						# wild uniform
+        series e = resample(uhat) * uniform(0,1)
+    elif b.btype==3						# Use Rademacher distrib. instead of uniform(0,1)
+        series Rad = uniform(0,1)
+        Rad = -1*(Rad<=0.5) + (Rad>0.5)
+        series e = resample(uhat) * Rad
+    endif
+end function
+
+function void arstabA (matrix ARcoef,
+                       scalar *error)
+    if (sum(ARcoef)-1)>-0.00001
+        error=1
+    else
+        error=0
+    endif
+end function
+
+function bundle setMod (int whichTest[0:1:] "Test type" {"BDM", "PSS"},
+                        int case[0:2:1] "Case" {"Unrestr. intercept", "restr. interc.", "restr. interc.+trend"},
+                        const series Y "Endogenous",
+                        const list xlist "Exogenous regressors",
+                        const list rxlist[null] "List of addit. regressors",
+                        int pq[1::4] "Lag length in levels",
+                        int condARDL[0:1:1] "Add contempor. x-values" {"No (reduced form)", "Yes (conditional)"},
+                        int btype[0:3:2] "Type of bootstrap" {"1=parametric", "2=non-parametric", "3=wild uniform", "4=wild Rademacher"},
+                        int bootrep[99::999],
+                        scalar failstop[0.01:0.9:0.2] "Fraction of failed bootstrap iterations before full stop",
+                        int verb[0:1:0] "Print details" {"No", "Yes"})
+    bundle b
+    if case==2 && strstr(varname(rxlist), "time")==""
+        printf "\n*** You've chosen to run case 2 but no time trend is provided in rxlist. ***\n"
+        printf "*** Please re-specify your model. ***\n"
+        stop
+    endif
+    scalar b.addDET = 0
+    if strstr(varname(rxlist), "const")!=""
+        scalar b.addDET = 1
+        rxlist -= const
+    endif
+    if strstr(varname(rxlist), "time")!=""
+        scalar b.addDET = 2
+        rxlist -= rxlist.time
+    endif
+    matrix b.my = {Y}
+    matrix b.mx = xlist
+    matrix b.mrx = rxlist
+    b.nx = nelem(xlist)
+    b.nrx = nelem(rxlist)
+    b.pq = pq
+    b.condARDL = condARDL
+    if b.condARDL==1
+        b.pqmin = 0
+    else
+        b.pqmin = -1
+    endif
+    b.whichTest = whichTest
+    b.case = case
+    b.btype = btype
+    b.bootrep = bootrep
+    b.failstop = failstop
+    if verb==1
+        string b.optsil = ""
+    else
+        string b.optsil = "--quiet"
+    endif
+    return b
+end function
+
+function void runCoint (bundle *b)
+    series Y = b.my
+    list xlist = b.mx
+    list rxlist = b.mrx
+    lags Y xlist
+    quiet = b.optsil
+    # TODO: In principle we could provide an user-defined matrix before calling runARDL()
+    # This could be helpful if want to provide a gappy coefficient matrix with some
+    # zeros or fixed parameters (for whetever reasons).
+    list lDET = null
+    if b.addDET==1
+        list lDET += const
+    elif b.addDET==2
+        list lDET += const time
+    endif
+    matrix b.md = lDET
+    ols Y lDET Y(-1 to -b.pq) xlist(b.pqmin to -b.pq) rxlist --quiet #@quiet
+    # Evaluate stability first
+    scalar b.ay = b.addDET + 1
+    scalar b.ey = b.ay+b.pq-1
+    scalar err = 0
+    arstabA($coeff[b.ay:b.ey],&err)
+    scalar cancel = 0
+    if err
+        printf "*** NOTE: Your model is unstable. ***\n"
+        printf "*** Please re-specify and try again. ***\n"
+        cancel=1
+    endif
+    if cancel==0
+        b.uhat = {$uhat}			# those are used for resampling
+        scalar b.nx = nelem(xlist)
+        scalar b.nall = nelem($coeff)
+        #------------------------------------------
+        # Test the null of no long-run relationship
+        #------------------------------------------
+        prepRq(&b)
+        matrix Rmat = b.Rmat
+        matrix qvec = b.qvec
+        restrict --full --silent#@quiet		 # H0: SUM(a_j)-1=0 --> in ECM: rho=0
+            R = Rmat
+            q = qvec
+        end restrict
+        b.teststat = $test				# F-Test stats.
+        # Information of the null model for bootstrap
+        matrix rARcoef = $coeff[b.ay:b.ey]		# AR coefficients
+        b.rARcoef = rARcoef
+        if b.addDET>0
+            b.Zcoef = $coeff[1:(b.ay-1)] | $coeff[b.ey+1:]	# Deterministics + DL coeff needed for ysim()
+        else
+            b.Zcoef = $coeff[b.ey+1:]
+        endif
+        scalar b.ax = b.ey+1
+        scalar b.ex = b.ax + b.nx*(b.condARDL + b.pq)-1
+        # Run bootstrap Test()
+        bootTest(&b)
+        # Bootstrap p-value
+        if b.cancel==0
+            matstat = b.matstat
+            b.crit =  quantile(b.matstat,{0.99, 0.95, 0.9})
+            rownames(b.crit, "99pct. 95pct. 90pct.")
+            b.pvboot = sum(abs(b.matstat).>= abs(b.teststat))/b.bootrep	# Compute scalar bootstrap p-value
+            # Print results
+            if b.optsil == ""
+                printTest(&b)
+            endif
+        else
+            matrix b.crit = NA
+            matrix b.pvboot = NA
+            matrix b.test = NA
+        endif
+    else
+        matrix b.crit = NA
+        matrix b.pvboot = NA
+        matrix b.test = NA
+    endif
+end function
+
+
+
+/*
+# sample function call
+set verbose off
+clear 
+include cointARDL.gfn
+#-----------
+# Example 1
+#-----------
+open denmark.gdt -q
+
+# Run the bootstrap version based on the ARDL
+list xlist = LRY IBO #IDE
+list rxlist = const #time
+scalar pq = 1
+scalar condARDL = 1			# 0=unconditional, 1=conditional ARDL
+scalar case = 1				# 0=unrestr. const., 1=restrc. const., 2=restr. const + restr. trend
+scalar btype = 2			# 0=parametric, 1=non-param, 2=wild, 3=wild+Rademacher distrib.
+scalar bootrep = 999		# no. of iterations
+scalar failstop = 0.1		# max. fraction of unstable models
+scalar which = 1			# 0=BDM, 1=PSS test
+scalar verbose = 1			# 0=no details, 1=print details
+# Setup the model
+bundle b = setMod(which, case, LRM, xlist, rxlist, \
+  pq, condARDL, btype, bootrep, failstop, verbose)
+# Run bootstrap cointegration test
+runCoint(&b)
+print b			# print the bundle input
+
+
+/* Activate if needed
+#---------------------------------
+# Example 2 -- Simulation example
+#---------------------------------
+clear
+nulldata 200 --preserve
+setobs 1 1 --special-time-series
+scalar T = max(index)
+set seed 1234
+scalar m = 2            # Dimension of cov matrix
+matrix covm = I(m)      # Simple case: identity matrix
+covm[2,1]=0				# determine contemporanous correlation
+covm[1,2]=covm[2,1]
+matrix errmn = mnormal(T,cols(covm)) * cholesky(covm)' # drawnorm(covm,TT)
+#eval mcorr(errmn)
+                    
+series e1 = errmn[,1]
+series e2 = errmn[,2]
+scalar delta = 0#.01					# drift param. for x-process
+series x = cum(delta+e1)				# DGP for x, simple RW(+drift)
+scalar a = 0			# intercept
+scalar phi = 0.9		# speed of adjustment param. rho=phi-1
+scalar c0 = 0.5			# contemporanous effect of x
+scalar c1 = -0.45		# 1st lag of x
+series y = 0			# init. value
+series y = a + phi*y(-1) + c0*x + c1*x(-1) + e2	# DGP: ARDL in levels
+printf "\n************************************\n"
+printf "Error-correction param. = %.3f\n", (phi-1)
+printf "LR-beta multiplier = %.3f\n", (c0+c1)/(phi-1)
+printf "************************************\n"
+
+smpl index >= T/2 --restrict		# allow for burn-in phase
+store "@dotdir/dtmp.gdt"
+open "@dotdir/dtmp.gdt" -q
+gnuplot x y --with-lines --time-series --output=display
+# Run the bootstrap version based on the ARDL
+list xlist = x
+list rxlist = const time
+scalar pq = 1			# lag length in levels
+scalar condARDL = 1		# conditional ARDL: 0=NO, 1=YES
+scalar case = 2			# 0=unrestr. intercept, 1=rest. intercept, 2=restr. const+trend
+scalar btype = 1		# 0=parametric, 1=non-param, 2=wild, 3=wild+Rademacher distrib.
+scalar bootrep = 1999
+scalar failstop = 0.1	# max. percentage of failed stability
+scalar which = 0		# 0=BDM, 1=PSS test
+# Setup the model
+bundle B = setMod(which, case, y, xlist, rxlist, \
+  pq, condARDL, btype, bootrep, failstop, 1)
+# Run bootstrap cointegration test
+runCoint(&B)
+   
+# Johansen test for comparison
+list endo = y x
+coint2 pq y x #--rc
+*/

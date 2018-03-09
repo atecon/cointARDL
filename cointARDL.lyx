@@ -1,0 +1,2628 @@
+#LyX 2.2 created this file. For more info see http://www.lyx.org/
+\lyxformat 508
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package babel
+\inputencoding auto
+\fontencoding global
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize 11
+\spacing other 1.15
+\use_hyperref false
+\papersize default
+\use_geometry true
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 2.5cm
+\topmargin 2.5cm
+\rightmargin 2.5cm
+\bottommargin 2.5cm
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\listings_params "basicstyle={\footnotesize\ttfamily}"
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+The cointARDL addon for gretl
+\end_layout
+
+\begin_layout Author
+Artur Tarassow
+\end_layout
+
+\begin_layout Date
+Version 0.51
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Doublebox
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+
+\series bold
+Changelog
+\end_layout
+
+\begin_layout Itemize
+Version 0.51 (May, 2017)
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+correction: following the literature, the wild bootstrap does not rely on
+ resampled residuals but the initially estimated ones, instead.
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+Version 0.5:
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+initial version
+\end_layout
+
+\end_deeper
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Introduction
+\end_layout
+
+\begin_layout Standard
+The 
+\family typewriter
+cointARDL
+\family default
+ package is a collection of gretl scripts to conduct single-equation bootstrap
+ cointegration tests based on the autoregressive distributed lag (ARDL)
+ model.
+\end_layout
+
+\begin_layout Standard
+This package comprises the following two single-equation cointegration tests:
+\end_layout
+
+\begin_layout Enumerate
+
+\series bold
+BDM t-test
+\series default
+: Banerjee, A., J.
+ Dolado, and R.
+ Mestre (1998): 
+\begin_inset Quotes eld
+\end_inset
+
+Error-correction Mechanism Tests for Cointegration in a Single-equation
+ Framework
+\begin_inset Quotes erd
+\end_inset
+
+, 
+\emph on
+Journal of Time Series Analysis
+\emph default
+, 19(3), 267-283.
+\end_layout
+
+\begin_layout Enumerate
+
+\series bold
+PSS bounds F-test
+\series default
+: Pesaran, M.H., Y.
+ Shin and R.J.
+ Smith (2001), “Bounds Testing Approaches to the Analysis of Level Relationships
+”, 
+\emph on
+Journal of Applied Econometrics
+\emph default
+ Special Issue in honour of J.D.
+ Sargan on the 
+\emph on
+Theme Studies in Empirical Macroeconometrics
+\emph default
+ D.F.
+ Hendry and M.H.
+ Pe- saran (eds.), 16, 289-326.
+\end_layout
+
+\begin_layout Standard
+Critical values depend on the deterministic case considered, sample size
+ and number of regressors.
+ For all cases, the corresponding critical values are obtained via bootstrapping
+ instead of relying on simulated asymptotic critical values.
+ The package comprises 4 different bootstrap procedures for drawing the
+ innovations, namely the parametric, non-parametric, wild uniform and wild
+ Rademacher procedures.
+\end_layout
+
+\begin_layout Section
+The ARDL model
+\end_layout
+
+\begin_layout Standard
+Begin with the 
+\emph on
+autoregressive distributed lag
+\emph default
+ ARDL(1,1) in levels model 
+\begin_inset Formula 
+\[
+y_{t}=\phi_{1}y_{t-1}+c_{0}x_{t}+c_{1}x_{t-1}+u_{t},\quad t=1,...,T
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\phi_{1}$
+\end_inset
+
+, 
+\begin_inset Formula $c_{0}$
+\end_inset
+
+ and 
+\begin_inset Formula $c_{1}$
+\end_inset
+
+ are unknown parameters, and 
+\begin_inset Formula 
+\[
+x_{t}=x_{t-1}+e_{t}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The model can be re-written in the 
+\emph on
+error-correction
+\emph default
+ ECM(-ARDL) form:
+\begin_inset Formula 
+\begin{align*}
+\Delta y_{t} & =-(1-\phi_{1})\left[y_{t-1}-\frac{c_{0}+c_{1}}{1-\phi_{1}}\right]+c_{0}\Delta x_{t}+u_{t}\\
+ & =\rho(y_{t-1}-\beta x_{t-1})+c_{0}\Delta x_{t}+u_{t}
+\end{align*}
+
+\end_inset
+
+where 
+\begin_inset Formula $\rho=-(1-\phi_{1})$
+\end_inset
+
+ denotes the so called error-correction coefficient (speed of adjustment
+ back to the long-run attractor) and 
+\begin_inset Formula $\beta=-\frac{c_{0}+c_{1}}{\rho}$
+\end_inset
+
+ refers to the (non-linear ARDL-based) long-run multiplier.
+ The model is dynamically stable as long as 
+\begin_inset Formula $|\rho|=|1-\phi_{1}|<1.$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The general level ARDL(p,q) model can be written as
+\begin_inset Formula 
+\[
+y_{t}=\sum_{j=1}^{p}\phi_{j}y_{t-j}+\sum_{j=0}^{q}c_{j}x_{t-j}+u_{t}
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $p$
+\end_inset
+
+ and 
+\begin_inset Formula $q$
+\end_inset
+
+ denote the respective lag length.
+ In case the lowest lag of the exogenous regressors is 
+\begin_inset Formula $q^{min}>0$
+\end_inset
+
+ a so called 
+\emph on
+unconditional
+\emph default
+ ARDL is estimated, and if the contemporansous 
+\begin_inset Formula $x_{t}$
+\end_inset
+
+ value is included the 
+\emph on
+conditional
+\emph default
+ ARDL is specified (Pesaran et al., 2001).
+\end_layout
+
+\begin_layout Standard
+The following assumptions are made:
+\end_layout
+
+\begin_layout Enumerate
+\begin_inset Formula $u_{t}\sim iid(0,\sigma_{u}^{2})$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+\begin_inset Formula $e_{t}$
+\end_inset
+
+ is a general linear stationary process with zero mean and finite variance.
+\end_layout
+
+\begin_layout Enumerate
+\begin_inset Formula $u_{t}$
+\end_inset
+
+ and 
+\begin_inset Formula $e_{t}$
+\end_inset
+
+ are uncorrelated for all lags such that 
+\begin_inset Formula $x_{t}$
+\end_inset
+
+ is strictly exogenous w.r.t.
+ 
+\begin_inset Formula $u_{t}$
+\end_inset
+
+ 
+\end_layout
+
+\begin_layout Enumerate
+\begin_inset Formula $|\phi_{1}|<1,$
+\end_inset
+
+ so that the model is dynamically stable.
+\end_layout
+
+\begin_layout Subsection
+The BDM test
+\end_layout
+
+\begin_layout Standard
+Banerjee et al.
+ (1998) propose to test the null of no cointegration (here illustrated for
+ the level ARDL and ECM-ARDL representation, respectively)
+\begin_inset Formula 
+\[
+H_{0}:\phi_{1}=1\quad\text{{or}\; \rho=0}
+\]
+
+\end_inset
+
+ against the alternative of cointegration
+\begin_inset Formula 
+\[
+H_{1}:\phi_{1}<1\quad\text{{or}\; \rho<0}
+\]
+
+\end_inset
+
+ where it follows that there exists a long-run level relationship between
+ 
+\begin_inset Formula $y_{t}$
+\end_inset
+
+ and 
+\begin_inset Formula $x_{t}$
+\end_inset
+
+ defined by 
+\begin_inset Formula $y_{t}=\beta x_{t}+\psi_{t}$
+\end_inset
+
+ where 
+\begin_inset Formula $\beta=-\frac{(c_{0}+c_{1})}{1-\phi_{1}}$
+\end_inset
+
+ and 
+\begin_inset Formula $\psi_{t}$
+\end_inset
+
+ is a zero mean stationary process.
+ The test on the null hypothesis is valid if assumptions 1 to 3 are fulfilled.
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+Note
+\series default
+: In this package, we apply the level ARDL formulation instead of the ECM-ARDL
+ form, and test the corresponding null hypothesis 
+\begin_inset Formula $H_{0}:\phi_{1}=1$
+\end_inset
+
+ for an ARDL(1,1).
+ For a general ARDL(p,q) with 
+\begin_inset Formula $p$
+\end_inset
+
+ AR lags of the endogenous variable, the respective null hypothesis is 
+\begin_inset Formula 
+\[
+H_{0}=\sum_{j=1}^{p}\phi_{j}-1=0\;.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+The PSS bounds test
+\end_layout
+
+\begin_layout Standard
+The BDM testing procedure (and the same holds for the residual-based Engle-Grang
+er as well as the multivariate Johanson cointegration tests) requires all
+ variables to be integrated of order 1.
+ This involves some pre-testing via unit-root tests which introduces further
+ uncertainty into the analysis of long-run relations.
+ Pesaran et al.
+ argue that stationary 
+\begin_inset Formula $I(0)$
+\end_inset
+
+ variables which are not present in the set of 
+\begin_inset Formula $I(1)$
+\end_inset
+
+ regressors 
+\begin_inset Formula $x_{t}$
+\end_inset
+
+ may also enter a long-run relationship.
+ The PSS test is applicable irrespective of whether the underlying regressors
+ are I(0), I(1) or mutually cointegrated.
+\end_layout
+
+\begin_layout Standard
+PSS propose to test the null of no long-run relationship between the variables
+ (here using the level ARDL(p,q) formulation again) by 
+\begin_inset Formula 
+\[
+H_{0}:\sum_{j=1}^{p}\phi_{j}-1=\sum_{j=0}^{q}c_{j}=0
+\]
+
+\end_inset
+
+which is equivalent to testing this null based on the ECM-ARDL representation
+ 
+\begin_inset Formula 
+\[
+H_{0}:\rho=\sum_{j=0}^{q}c_{j}=0
+\]
+
+\end_inset
+
+by means of a Wald- or F-test.
+ In this package, we apply the F-test version using again the level ARDL
+ representation.
+\end_layout
+
+\begin_layout Subsection
+Deterministic components
+\end_layout
+
+\begin_layout Standard
+We differentiate between three cases of interest regarding the specification
+ of deterministic terms in the regression:
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+Case 0
+\series default
+: (unrestricted intercept and no time trend) The unrestricted ARDL is
+\begin_inset Formula 
+\[
+y_{t}=\alpha+\sum_{j=1}^{p}\phi_{j}y_{t-1}+\sum_{j=0}^{q}c_{j}x_{t-j}+u_{t}
+\]
+
+\end_inset
+
+and test for
+\begin_inset Formula 
+\begin{align*}
+\text{BDM}\;H_{0}:\; & \sum_{j=1}^{p}\phi_{j}-1=0\\
+\text{PSS\;}H_{0}:\; & \sum_{j=1}^{p}\phi_{j}-1=\sum_{j=0}^{q}c_{j}=0
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+Case 
+\series default
+1: (restricted intercept and no time trend) The unrestricted ARDL is
+\begin_inset Formula 
+\[
+y_{t}=\alpha+\sum_{j=1}^{p}\phi_{j}y_{t-1}+\sum_{j=0}^{q}c_{j}x_{t-j}+u_{t}
+\]
+
+\end_inset
+
+and test for
+\begin_inset Formula 
+\begin{align*}
+\text{BDM}\;H_{0}:\; & \alpha=\sum_{j=1}^{p}\phi_{j}-1=0\\
+\text{PSS\;}H_{0}:\; & \alpha=\sum_{j=1}^{p}\phi_{j}-1=\sum_{j=0}^{q}c_{j}=0
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+Case 
+\series default
+2: (restricted intercept and restricted time trend) The ARDL is
+\begin_inset Formula 
+\[
+y_{t}=\alpha+\delta t+\sum_{j=1}^{p}\phi_{j}y_{t-1}+\sum_{j=0}^{q}c_{j}x_{t-j}+u_{t}
+\]
+
+\end_inset
+
+and test for
+\begin_inset Formula 
+\begin{align*}
+\text{BDM}\;H_{0}:\; & \alpha=\delta=\sum_{j=1}^{p}\phi_{j}-1=0\\
+\text{PSS\;}H_{0}:\; & \alpha=\delta=\sum_{j=1}^{p}\phi_{j}-1=\sum_{j=0}^{q}c_{j}=0
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In principle further cases could be added.
+\end_layout
+
+\begin_layout Standard
+All necessary restrictions based on the level ARDL(p,q) representation are
+ imposed via their implicit form representation 
+\begin_inset Formula $R\theta=d$
+\end_inset
+
+, and are automatically imposed by the sub function 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+texttt{prepRq()}
+\end_layout
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Section
+Examples
+\end_layout
+
+\begin_layout Subsection
+Illustrating the equivalence of the ECM and the ARDL in levels formulation
+\end_layout
+
+\begin_layout Standard
+To illustrate that the popular ECM representation and the ARDL in levels
+ form are equivalent, we provide a working example of the PSS test on no
+ cointegration in the following.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Doublebox
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\begin_inset listings
+lstparams "basicstyle={\footnotesize\ttfamily}"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+# turn extra output off
+\end_layout
+
+\begin_layout Plain Layout
+
+set verbose off
+\end_layout
+
+\begin_layout Plain Layout
+
+# Load the cointARDL package into memory
+\end_layout
+
+\begin_layout Plain Layout
+
+include cointARDL.gfn
+\end_layout
+
+\begin_layout Plain Layout
+
+# open the Johansen data and do some
+\end_layout
+
+\begin_layout Plain Layout
+
+# preliminary transformations
+\end_layout
+
+\begin_layout Plain Layout
+
+open denmark.gdt -q
+\end_layout
+
+\begin_layout Plain Layout
+
+d_LRM = diff(LRM)
+\end_layout
+
+\begin_layout Plain Layout
+
+d_LRY = diff(LRY)
+\end_layout
+
+\begin_layout Plain Layout
+
+d_IBO = diff(IBO)
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+
+# Estimate the ECM-ARDL and run PSS test on no cointegration
+\end_layout
+
+\begin_layout Plain Layout
+
+ols d_LRM 0 LRM(-1) LRY(-1) IBO(-1) d_LRY d_IBO --quiet
+\end_layout
+
+\begin_layout Plain Layout
+
+restrict
+\end_layout
+
+\begin_layout Plain Layout
+
+	b[2]=0
+\end_layout
+
+\begin_layout Plain Layout
+
+	b[3]=0
+\end_layout
+
+\begin_layout Plain Layout
+
+	b[4]=0
+\end_layout
+
+\begin_layout Plain Layout
+
+end restrict
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+
+# Run the equivalent ARDL in levels and run PSS test on no cointegration
+\end_layout
+
+\begin_layout Plain Layout
+
+ols LRM 0 LRM(-1 to -1) LRY(0 to -1) IBO(0 to -1) --quiet
+\end_layout
+
+\begin_layout Plain Layout
+
+restrict
+\end_layout
+
+\begin_layout Plain Layout
+
+	b[2]-1=0
+\end_layout
+
+\begin_layout Plain Layout
+
+	b[3]+b[4]=0
+\end_layout
+
+\begin_layout Plain Layout
+
+	b[5]+b[6]=0
+\end_layout
+
+\begin_layout Plain Layout
+
+end restrict
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace bigskip
+\end_inset
+
+The F-statistics are the same as reported in the following gretl output.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Doublebox
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+# ARDL-ECM output
+\end_layout
+
+\begin_layout Plain Layout
+
+Restriction set
+\end_layout
+
+\begin_layout Plain Layout
+
+ 1: b[LRM_1] = 0
+\end_layout
+
+\begin_layout Plain Layout
+
+ 2: b[LRY_1] = 0
+\end_layout
+
+\begin_layout Plain Layout
+
+ 3: b[IBO_1] = 0
+\end_layout
+
+\begin_layout Plain Layout
+
+Test statistic: F(3, 48) = 7.33271, with p-value = 0.000383251
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+
+# ARDL in levels output
+\end_layout
+
+\begin_layout Plain Layout
+
+Restriction set
+\end_layout
+
+\begin_layout Plain Layout
+
+ 1: b[LRM_1] = 1
+\end_layout
+
+\begin_layout Plain Layout
+
+ 2: b[LRY] + b[LRY_1] = 0
+\end_layout
+
+\begin_layout Plain Layout
+
+ 3: b[IBO] + b[IBO_1] = 0
+\end_layout
+
+\begin_layout Plain Layout
+
+Test statistic: F(3, 48) = 7.33271, with p-value = 0.000383251
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Run the bootstrap BDM t-test on no cointegration
+\end_layout
+
+\begin_layout Standard
+For illustration, we will rely on the well-known Johansen dataset (quarterly
+ frequency), and estimate a single-equation money demand relationship.
+ The endogenous is the log of a monetary aggregate expressed in real terms
+ (LRM).
+ The regressors are the log of real GDP (LRY) and the bond rate (IBO).
+ We assume all variables to be I(1).
+ We will estimate a conditional ARDL(1,1,1) in levels including an intercept,
+ run a non-parametric bootstrap with 999 iterations and test the restricted
+ intercept 
+\series bold
+Case 1
+\series default
+.
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Doublebox
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+# Setup the list of regressors
+\end_layout
+
+\begin_layout Plain Layout
+
+list xlist = LRY IBO
+\end_layout
+
+\begin_layout Plain Layout
+
+# set the list of additional deterministics or further I(0) vars.
+\end_layout
+
+\begin_layout Plain Layout
+
+list rxlist = const
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+
+# Model and test settings
+\end_layout
+
+\begin_layout Plain Layout
+
+scalar pq = 1	# Lag order (applied to all xlist vars.
+ and the endog.)
+\end_layout
+
+\begin_layout Plain Layout
+
+scalar condARDL = 1	# 1=conditional ARDL
+\end_layout
+
+\begin_layout Plain Layout
+
+case = 1
+\end_layout
+
+\begin_layout Plain Layout
+
+btype = 2		# bootstrap type: 2=non-parametric
+\end_layout
+
+\begin_layout Plain Layout
+
+bootrep = 999
+\end_layout
+
+\begin_layout Plain Layout
+
+scalar failstop = 0.1	# max.
+ 10% unstable iterations are allowed
+\end_layout
+
+\begin_layout Plain Layout
+
+scalar which = 1	# 1=BDM test
+\end_layout
+
+\begin_layout Plain Layout
+
+scalar verbose = 1	# 1=print details
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+
+# Setup the model via setMod()
+\end_layout
+
+\begin_layout Plain Layout
+
+bundle b = setMod(which, case, LRM, xlist, rxlist, 
+\backslash
+
+\end_layout
+
+\begin_layout Plain Layout
+
+pq, condARDL, btype, bootrep, failstop, verbose)
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+
+# Run bootstrap cointegration test via runCoint()
+\end_layout
+
+\begin_layout Plain Layout
+
+runCoint(&b)
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace bigskip
+\end_inset
+
+The corresponding gretl output is
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Doublebox
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+*****************************************************
+\end_layout
+
+\begin_layout Plain Layout
+
+*** BDM bootstrap t-Test based on ARDL(1,1) model ***
+\end_layout
+
+\begin_layout Plain Layout
+
+*****************************************************
+\end_layout
+
+\begin_layout Plain Layout
+
+Restriction case: Restricted constant
+\end_layout
+
+\begin_layout Plain Layout
+
+Bootstrap type: non-parametric
+\end_layout
+
+\begin_layout Plain Layout
+
+Bootstrap replications: 999
+\end_layout
+
+\begin_layout Plain Layout
+
+Initial test statistics = 8.329
+\end_layout
+
+\begin_layout Plain Layout
+
+Critical values:        1pct.
+  	 5pct.
+  	 10pct.
+\end_layout
+
+\begin_layout Plain Layout
+
+9.177       6.259       5.073
+\end_layout
+
+\begin_layout Plain Layout
+
+Bootstrap p-value = 0.016
+\end_layout
+
+\begin_layout Plain Layout
+
+Fraction of failed iterations = 0.06
+\end_layout
+
+\begin_layout Plain Layout
+
+******************************************************
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace bigskip
+\end_inset
+
+Only 6% of the bootstrap models were dynamically unstable indicating a reasonabl
+e ARDL specification.
+ The bootstrap p-value is 1.6% and such that we can safely reject the null
+ of no cointegration.
+\end_layout
+
+\begin_layout Subsection
+Run the bootstrap PSS bounds (F-)test on no cointegration
+\end_layout
+
+\begin_layout Standard
+We run the same ARDL(1,1,1) model again but apply the PSS bounds test instead.
+ For this, we only have to change the scalar 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+texttt{which}
+\end_layout
+
+\end_inset
+
+ to 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+texttt{which=2}
+\end_layout
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Doublebox
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+# Model and test settings
+\end_layout
+
+\begin_layout Plain Layout
+
+scalar pq = 1			# Lag order (applied to all variables)
+\end_layout
+
+\begin_layout Plain Layout
+
+scalar condARDL = 1	# 1=conditional ARDL
+\end_layout
+
+\begin_layout Plain Layout
+
+case = 1
+\end_layout
+
+\begin_layout Plain Layout
+
+btype = 2			# bootstrap type: 2=non-parametric
+\end_layout
+
+\begin_layout Plain Layout
+
+bootrep = 999
+\end_layout
+
+\begin_layout Plain Layout
+
+scalar failstop = 0.1	# max.
+ 10% unstable iterations are allowed
+\end_layout
+
+\begin_layout Plain Layout
+
+scalar which = 2	# 2=PSS bounds test
+\end_layout
+
+\begin_layout Plain Layout
+
+scalar verbose = 1
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+
+# Setup the model via setMod()
+\end_layout
+
+\begin_layout Plain Layout
+
+bundle b = setMod(which, case, LRM, xlist, rxlist, 
+\backslash
+
+\end_layout
+
+\begin_layout Plain Layout
+
+pq, condARDL, btype, bootrep, failstop, verbose)
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+
+# Run bootstrap cointegration test via runCoint()
+\end_layout
+
+\begin_layout Plain Layout
+
+runCoint(&b)
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace bigskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The corresponding gretl output is
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Doublebox
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+*****************************************************
+\end_layout
+
+\begin_layout Plain Layout
+
+*** PSS bootstrap F-Test based on ARDL(1,1) model ***
+\end_layout
+
+\begin_layout Plain Layout
+
+*****************************************************
+\end_layout
+
+\begin_layout Plain Layout
+
+Restriction case: Restricted constant
+\end_layout
+
+\begin_layout Plain Layout
+
+Bootstrap type: non-parametric
+\end_layout
+
+\begin_layout Plain Layout
+
+Bootstrap replications: 999
+\end_layout
+
+\begin_layout Plain Layout
+
+Initial test statistics = 6.047
+\end_layout
+
+\begin_layout Plain Layout
+
+Critical values:        1pct.
+  	 5pct.
+  	 10pct.
+       
+\end_layout
+
+\begin_layout Plain Layout
+
+5.431       4.272       3.399
+\end_layout
+
+\begin_layout Plain Layout
+
+Bootstrap p-value = 0.007
+\end_layout
+
+\begin_layout Plain Layout
+
+Fraction of failed iterations = 0.04
+\end_layout
+
+\begin_layout Plain Layout
+
+******************************************************
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace bigskip
+\end_inset
+
+Again, we can safely reject the null; here even at the 1% significance level.
+\end_layout
+
+\begin_layout Subsection
+Access the bundle output
+\end_layout
+
+\begin_layout Standard
+After running the 
+\family typewriter
+runCoint()
+\family default
+ procedure, the user has access to various information generated by the
+ 
+\family typewriter
+cointARDL
+\family default
+ package.
+ For details, we refer to the end of this document.
+ As an example, we plot the test statistics of the PSS test obtained from
+ the bootstrap and the 95% critical value
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Doublebox
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+# Grab relevant information from bundle b
+\end_layout
+
+\begin_layout Plain Layout
+
+scalar cv5 = b.crit[2]		# 5 pct.
+ bootstrap critical value
+\end_layout
+
+\begin_layout Plain Layout
+
+matrix bstats = b.matstat	# vector of bootstrap test statistics
+\end_layout
+
+\begin_layout Plain Layout
+
+matrix mplot = bstats~(ones(rows(bstats),1)*cv5)~seq(1,rows(bstats),)'
+\end_layout
+
+\begin_layout Plain Layout
+
+colnames(mplot,"Test-stats critval5 seq")	# attache column names
+\end_layout
+
+\begin_layout Plain Layout
+
+plot mplot
+\end_layout
+
+\begin_layout Plain Layout
+
+	options with-lines fit=none
+\end_layout
+
+\begin_layout Plain Layout
+
+end plot --output=display
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace bigskip
+\end_inset
+
+This produces the following graph
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Graphics
+	filename cointARDL_fig.png
+	lyxscale 50
+	scale 35
+	rotateOrigin center
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+The various options
+\end_layout
+
+\begin_layout Subsection
+Test type
+\end_layout
+
+\begin_layout Standard
+The user can select the test type by the integer
+\family typewriter
+ whichTest
+\family default
+:
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Float table
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="3" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+whichTest
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Test type
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Banerjee/Dolado/Majestre t-test
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Pesaran/Shin/Smith bounds F-test
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Deterministic case
+\end_layout
+
+\begin_layout Standard
+At the moment, the user can specify the following three different deterministic
+ cases by the integer case:
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Float table
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="4" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+case
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Deterministic type
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+unrestricted intercept and no trend
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+restricted intercept and no trend
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+restricted intercept and restricted trend
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The differences were already discussed above.
+\end_layout
+
+\begin_layout Subsection
+Specify the endogenous variable
+\end_layout
+
+\begin_layout Standard
+The user needs to define the series 
+\family typewriter
+Y
+\family default
+ referring to the endogenous variable.
+ 
+\series bold
+Note
+\series default
+: The number of lags (
+\family typewriter
+pq
+\family default
+) will be added automatically.
+ At the moment it is not possible to set a gappy lag structure.
+\end_layout
+
+\begin_layout Subsection
+The list of exogenous regressors
+\end_layout
+
+\begin_layout Standard
+The user needs to define the list 
+\family typewriter
+xlist
+\family default
+ including the regressors.
+ 
+\series bold
+Note
+\series default
+: For each 
+\family typewriter
+xlist
+\family default
+-member the same number of lags (
+\family typewriter
+pq
+\family default
+) will be added automatically.
+ At the moment it is not possible to set a gappy lag structure.
+\end_layout
+
+\begin_layout Subsection
+The list of additional exogenous deterministics and I(0) variables
+\end_layout
+
+\begin_layout Standard
+The user can add additional exogenous variables such as deterministics or
+ further exogenous regressors in the list 
+\family typewriter
+rxlist
+\family default
+.
+ For members of this list no lags will be added automatically.
+
+\series bold
+ Note
+\series default
+: You always need to add the intercept to 
+\family typewriter
+rxlist
+\family default
+ if you want to include it to the model.
+\end_layout
+
+\begin_layout Subsection
+Determining the lag length
+\end_layout
+
+\begin_layout Standard
+The number of lags is set by the integer 
+\family typewriter
+pq.
+
+\family default
+ The same selected lag length applies to the endogenous variable, 
+\family typewriter
+Y
+\family default
+, as well as all exogenous regressors of the 
+\family typewriter
+xlist
+\family default
+ list.
+\end_layout
+
+\begin_layout Subsection
+Conditional or unconditional ARDL
+\end_layout
+
+\begin_layout Standard
+The user can choose whether to include the contemporaneous effects of 
+\family typewriter
+xlist
+\family default
+-members (conditional model) or not.
+ The latter type is equivalent of restricting the parameter 
+\begin_inset Formula $c_{0}=0$
+\end_inset
+
+ in the levels ARDL model.
+ It's meaning is shown below:
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Float table
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="3" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+condARDL
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Type
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+unconditional ARDL
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+conditional ARDL
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Bootstrap variants
+\end_layout
+
+\begin_layout Standard
+The user can choose between 4 bootstrap methods.
+ In our the 
+\family typewriter
+cointARDL
+\family default
+ package we generate for each replication an artificial data set of the
+ same length as the original data set on the assumption that the estimated
+ version of the core model is the true data-generating process, using the
+ observed initial values of each variable, the estimated model, and a set
+ of random innovations.
+\end_layout
+
+\begin_layout Standard
+These innovations can be obtained using 4 different ways.
+ The 
+\emph on
+parametric
+\emph default
+ bootstrap draws from a normal distribution.
+ The 
+\emph on
+non-parametric
+\emph default
+ bootstrap re-samples with replacement from the estimated residuals.
+\end_layout
+
+\begin_layout Standard
+To illustrate the two semiparametric wild bootstrap approaches, start from
+ the wild bootstrap DGP 
+\begin_inset Formula $y_{t}^{\ast}=X_{t}\tilde{\beta}+f(\tilde{u}_{t})v_{t}^{\ast}$
+\end_inset
+
+ where 
+\begin_inset Formula $\tilde{\beta}$
+\end_inset
+
+ denotes the least squares estimates, and 
+\begin_inset Formula $f(\tilde{u}_{t})$
+\end_inset
+
+ is a transformation of the 
+\begin_inset Formula $t^{th}$
+\end_inset
+
+ residual 
+\begin_inset Formula $\tilde{u}_{t}$
+\end_inset
+
+, and 
+\begin_inset Formula $v_{t}^{\ast}$
+\end_inset
+
+ is a random variable with mean 0 and variance 1.
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+For further details, see e.g.
+ 
+\begin_inset CommandInset href
+LatexCommand href
+name "russell-davidson.arts.mcgill.ca/e761/rd-jgm-bootstrap.pdf "
+target "russell-davidson.arts.mcgill.ca/e761/rd-jgm-bootstrap.pdf "
+
+\end_inset
+
+.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The 
+\emph on
+wild uniform
+\emph default
+ bootstrap assumes that 
+\begin_inset Formula $v_{t}^{\ast}$
+\end_inset
+
+ is drawn from a uniform distribution.
+ In contrast, the Rademacher two-point distribution is given by
+\begin_inset Formula 
+\begin{align*}
+v_{t}^{\ast} & =\begin{cases}
+-1 & \text{{with\quad probability}\; 0.5}\\
+1 & \text{{with\quad probability}\; 0.5}
+\end{cases}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Float table
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="5" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+btype
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Bootstrap type
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+parametric
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+non-parametric
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+wild uniform
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+3
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+wild Rademacher
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Contents of the model bundle
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Float table
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="18" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="left" valignment="top">
+<row>
+<cell multicolumn="1" alignment="center" valignment="top" topline="true" bottomline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\series bold
+Basic setup
+\end_layout
+
+\end_inset
+</cell>
+<cell multicolumn="2" alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+whichTest
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+integer, test type
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+case
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+integer, deterministic case
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+pq
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+integer, ARDL order
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+condARDL
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+integer, unconditional or conditional ARDL
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+btype
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+integer, bootstrap type
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+bootrep
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+integer, no.
+ of bootstrap iterations
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+failstop
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+scalar, max.
+ fraction of failed (unstable) simulated ARDL models
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+verb
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+integer, print no details or do
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell multicolumn="1" alignment="center" valignment="top" topline="true" bottomline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\series bold
+cointARDL post-estimation
+\end_layout
+
+\end_inset
+</cell>
+<cell multicolumn="2" alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+my
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+T by 1 matrix of the obs.
+ of the endogenous
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+crit
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+3 by 1 matrix containing the 99%, 95% and 90% critical values
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+failed
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+no.
+ of failed (unstable) iterations
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+pvboot
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+estimated bootstrap p-value
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+teststat
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+test statistics of the initial cointegration test
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+matstat
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+bootrep by 1 vector containing all simulated test statistics
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+addDET
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+integer taking 1 if the model includes an intercept or 2
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+if the model includes an intercept + trend
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document
