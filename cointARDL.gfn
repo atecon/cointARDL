@@ -3,7 +3,7 @@
 <gretl-function-package name="cointARDL" needs-time-series-data="true" minver="2016d" lives-in-subdir="true">
 <author email="artur.tarassow@gmail.com">Artur Tarassow</author>
 <version>0.6</version>
-<date>2018-04-10</date>
+<date>2018-04-13</date>
 <description>Bootstrap single-eq. cointegration tests</description>
 <tags>C20 C12</tags>
 <help>
