@@ -79,7 +79,7 @@ function void printTest (bundle *b)
     printf "\nCritical values:\n       1pct.  \t 5pct.  \t 10pct.\n"
     printf "%12.3f\n", b.crit'
     printf "Bootstrap p-value = %.3f\n", b.pvboot
-    printf "Fraction of failed iterations = %.2f\n", 100*b.failed/b.bootrep
+    printf "Percentage of failed iterations = %.2f\n", 100*b.failed/b.bootrep
     printf "******************************************************\n"
 end function
 
@@ -357,8 +357,6 @@ function void runCoint (bundle *b)
     endif
 end function
 
-
-/*
 # sample function call
 set verbose off
 clear 
@@ -397,7 +395,7 @@ colnames(mplot ," Test - stats critval5 seq ")
 plot mplot
     options with-lines fit=none
 end plot --output=display
-*/
+
 
 /* Activate if needed
    #---------------------------------

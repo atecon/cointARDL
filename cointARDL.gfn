@@ -253,7 +253,7 @@ printf &quot;\nInitial test statistics = %.3f\n&quot;, b.teststat
 printf &quot;\nCritical values:\n       1pct.  \t 5pct.  \t 10pct.\n&quot;
 printf &quot;%12.3f\n&quot;, b.crit'
 printf &quot;Bootstrap p-value = %.3f\n&quot;, b.pvboot
-printf &quot;Fraction of failed iterations = %.2f\n&quot;, 100*b.failed/b.bootrep
+printf &quot;Percentage of failed iterations = %.2f\n&quot;, 100*b.failed/b.bootrep
 printf &quot;******************************************************\n&quot;
 </code>
 </gretl-function>
@@ -406,7 +406,6 @@ endif
   <param name="x" type="matrix"/>
  </params>
 <code>#matrix x &quot;Data to be resampled&quot;
-# FIXME: should x be the de-meaned residuals??
 scalar n = rows(x)
 if n == 0
   funcerr &quot;data input error, check data&quot;
