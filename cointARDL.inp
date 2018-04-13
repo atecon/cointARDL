@@ -74,7 +74,7 @@ function void printTest (bundle *b)
     printf "\nCritical values:\n       1pct.  \t 5pct.  \t 10pct.\n"
     printf "%12.3f\n", b.crit'
     printf "Bootstrap p-value = %.3f\n", b.pvboot
-    printf "Fraction of failed iterations = %.2f\n", b.failed/b.bootrep
+    printf "Fraction of failed iterations = %.2f in pct.\n", 100*b.failed/b.bootrep
     printf "******************************************************\n"
 end function
 
@@ -124,7 +124,7 @@ function void bootTest (bundle *b)
         endif
     endloop
     if quiet!="--quiet"
-        printf "\n*** NOTE: %.2f pct. of the %d bootstrap iterations failed due to instability. ***\n", failed/b.bootrep, b.bootrep
+        printf "\n*** NOTE: %.2f pct. of the %d bootstrap iterations failed due to instability. ***\n", 100*failed/b.bootrep, b.bootrep
         printf "\n"
     endif
     b.cancel = cancel
