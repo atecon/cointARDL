@@ -85,7 +85,7 @@ Artur Tarassow
 \end_layout
 
 \begin_layout Date
-Version 0.6
+Version 0.7
 \end_layout
 
 \begin_layout Standard
@@ -113,6 +113,16 @@ status open
 Changelog
 \end_layout
 
+\begin_layout Itemize
+Version 0.7 (December, 2018)
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+small adaptions (but not of relevant code)
+\end_layout
+
+\end_deeper
 \begin_layout Itemize
 Version 0.6 (April, 2018)
 \end_layout

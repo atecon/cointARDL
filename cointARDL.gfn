@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gretl-functions>
 <gretl-function-package name="cointARDL" needs-time-series-data="true" minver="2016d" lives-in-subdir="true">
-<author email="artur.tarassow@gmail.com">Artur Tarassow</author>
-<version>0.6</version>
-<date>2018-04-13</date>
+<author email="atecon@cryptolab.net">Artur Tarassow</author>
+<version>0.7</version>
+<date>2018-12-26</date>
 <description>Bootstrap single-eq. cointegration tests</description>
-<tags>C20 C12</tags>
+<tags>C12 C20</tags>
 <help>
 pdfdoc:cointARDL.pdf
 </help>
@@ -25,18 +25,16 @@ pdfdoc:cointARDL.pdf
 <description>Endogenous</description>
   </param>
   <param name="xlist" type="list" const="true">
-<description>Exogenous regressors</description>
+<description>List of exogenous regressors</description>
   </param>
   <param name="rxlist" type="list" optional="true" const="true">
-<description>List of addit. regressors</description>
+<description>List of exogenous (no lags will be incl.)</description>
   </param>
   <param name="pq" type="int" min="1" default="4">
 <description>Lag length in levels</description>
   </param>
-  <param name="condARDL" type="int" min="0" max="1" default="1">
-<description>Add contempor. x-values</description>
-<labels count="2">
-"No (reduced form)" "Yes (conditional)" </labels>
+  <param name="condARDL" type="bool" default="1">
+<description>Conditional model: 0=No, 1=Yes (default)</description>
   </param>
   <param name="btype" type="int" min="0" max="4" default="1">
 <description>Type of bootstrap</description>
@@ -54,15 +52,14 @@ pdfdoc:cointARDL.pdf
 <code>bundle b
 if case==2 &amp;&amp; strstr(varname(rxlist), &quot;time&quot;)==&quot;&quot;
   printf &quot;\n*** You've chosen to run case 2 but no time trend is provided in rxlist. ***\n&quot;
-  printf &quot;*** Please re-specify your model. ***\n&quot;
-  stop
+  funcerr &quot;*** Please re-specify your model. ***&quot;
 endif
 scalar b.addDET = 0
-if strstr(varname(rxlist), &quot;const&quot;)!=&quot;&quot;
+if inlist(rxlist, &quot;const&quot;)
   scalar b.addDET = 1
   rxlist -= const
 endif
-if strstr(varname(rxlist), &quot;time&quot;)!=&quot;&quot;
+if inlist(rxlist, &quot;time&quot;)
   scalar b.addDET = 2
   rxlist -= rxlist.time
 endif
@@ -73,7 +70,7 @@ b.nx = nelem(xlist)
 b.nrx = nelem(rxlist)
 b.pq = pq
 b.condARDL = condARDL
-if b.condARDL==1
+if b.condARDL
   b.pqmin = 0
 else
   b.pqmin = -1
@@ -83,11 +80,7 @@ b.case = case
 b.btype = btype
 b.bootrep = bootrep
 b.failstop = failstop
-if verb==1
-  string b.optsil = &quot;&quot;
-else
-  string b.optsil = &quot;--quiet&quot;
-endif
+string b.optsil = (verb==1) ? &quot;&quot; : &quot;--quiet&quot;
 return b
 </code>
 </gretl-function>
@@ -140,20 +133,20 @@ if cancel==0
   # Information of the null model for bootstrap
   matrix rARcoef = $coeff[b.ay:b.ey]		# AR coefficients
   b.rARcoef = rARcoef
-  if b.addDET&gt;0
-    b.Zcoef = $coeff[1:(b.ay-1)] | $coeff[b.ey+1:]	# Deterministics + DL coeff needed for ysim()
+  scalar b.ax = b.ey + 1
+  if b.addDET &gt; 0
+    b.Zcoef = $coeff[1:(b.ay-1)] | $coeff[b.ax:]	# Deterministics + DL coeff needed for ysim()
   else
-    b.Zcoef = $coeff[b.ey+1:]
+    b.Zcoef = $coeff[b.ax:]
   endif
-  scalar b.ax = b.ey+1
-  scalar b.ex = b.ax + b.nx*(b.condARDL + b.pq)-1
+  scalar b.ex = b.ax + b.nx*(b.condARDL + b.pq) - 1
   # Run bootstrap Test()
   bootTest(&amp;b)
   # Bootstrap p-value
   if b.cancel==0
     matstat = b.matstat
     b.crit =  quantile(b.matstat,{0.99, 0.95, 0.9})
-    rownames(b.crit, &quot;99pct. 95pct. 90pct.&quot;)
+    rownames(b.crit, &quot;99pct. 95pct. 90pct.&quot;)	# TODO: rnameset()
     b.pvboot = sum(abs(b.matstat).&gt;= abs(b.teststat))/b.bootrep	# Compute scalar bootstrap p-value
     # Print results
     if b.optsil == &quot;&quot;
@@ -289,7 +282,7 @@ loop while nloop &lt;= b.bootrep -q
   if nelem($xlist)!=cols(Rmat) || (sum($coeff[b.ay:b.ey])-1)&gt;-0.00001
     failed++
     if failed/b.bootrep &gt;= b.failstop
-      printf &quot;*** ERROR: %d pct. of the bootstrap iterations failed due to instability. ***\n&quot;, 100*b.failstop
+      #printf &quot;*** ERROR: %d pct. of the bootstrap iterations failed due to instability. ***\n&quot;, 100*b.failstop
       printf &quot;*** You should re-consider to re-specify your model. ***\n&quot;
       cancel=1
       break
@@ -305,8 +298,8 @@ loop while nloop &lt;= b.bootrep -q
   endif
 endloop
 if quiet!=&quot;--quiet&quot;
-  printf &quot;\n*** NOTE: %.2f pct. of the %d bootstrap iterations failed due to instability. ***\n&quot;, 100*failed/b.bootrep, b.bootrep
-  printf &quot;\n&quot;
+  #printf &quot;\n*** NOTE: %.2f pct. of the %d bootstrap iterations failed due to instability. ***\n&quot;, 100*failed/b.bootrep, b.bootrep
+  #printf &quot;\n&quot;
 endif
 b.cancel = cancel
 if cancel==0
@@ -385,7 +378,7 @@ endif
   <param name="e" type="seriesref"/>
  </params>
 <code>series uhat = b.uhat
-#uhat = uhat-mean(uhat)	# FIXME: is re-centering needed here??
+#uhat = uhat-mean(uhat)	# TODO: is re-centering needed here??
 if b.btype==0
   series e = normal(0,sd(uhat))	# parametric bootstrap
 elif b.btype==1
@@ -429,7 +422,8 @@ return xx
 <sample-script>
 set verbose off
 clear 
-include cointARDL.gfn
+include cointARDL.gfn --force
+#include /home/at/git/cointARDL/cointARDL.gfn --force
 #-----------
 # Example 1
 #-----------
@@ -437,12 +431,12 @@ open denmark.gdt -q
 
 # Run the bootstrap version based on the ARDL
 list xlist = LRY IBO #IDE
-list rxlist = const #time
-scalar pq = 1
+list rxlist = const
+scalar pq = 2
 scalar condARDL = 1			# 0=unconditional, 1=conditional ARDL
 scalar case = 1				# 0=unrestr. const., 1=restrc. const., 2=restr. const + restr. trend
 scalar btype = 4			# 0=parametric, 1=non-param, 2=wild, 3=wild+Rademacher distrib., 4=block-boot
-scalar bootrep = 999		# no. of iterations
+scalar bootrep = 999			# no. of iterations
 scalar failstop = 0.1		# max. fraction of unstable models
 scalar which = 1			# 0=BDM, 1=PSS test
 scalar verbose = 1			# 0=no details, 1=print details
@@ -451,7 +445,6 @@ bundle b = setMod(which, case, LRM, xlist, rxlist, \
   pq, condARDL, btype, bootrep, failstop, verbose)
 # Run bootstrap cointegration test
 runCoint(&amp;b)
-print b			# print the bundle input
 
 # Grab relevant information from bundle b
 scalar cv5 = b.crit [2]

@@ -1,8 +1,3 @@
-# author='Artur Tarassow'
-# email='artur.tarassow@gmail.com'
-# version='0.6'
-# date='2018-04-10'
-
 function void prepRq (bundle *b)
     # BDM test
     if b.whichTest==0
@@ -83,7 +78,7 @@ function void printTest (bundle *b)
     printf "******************************************************\n"
 end function
 
-function void bootTest (bundle *b)
+function void bootTest (bundle *b)    
     matrix Rmat = b.Rmat
     matrix qvec = b.qvec
     series Y = b.my
@@ -112,7 +107,7 @@ function void bootTest (bundle *b)
         if nelem($xlist)!=cols(Rmat) || (sum($coeff[b.ay:b.ey])-1)>-0.00001
             failed++
             if failed/b.bootrep >= b.failstop
-                printf "*** ERROR: %d pct. of the bootstrap iterations failed due to instability. ***\n", 100*b.failstop
+                #printf "*** ERROR: %d pct. of the bootstrap iterations failed due to instability. ***\n", 100*b.failstop
                 printf "*** You should re-consider to re-specify your model. ***\n"
                 cancel=1
                 break
@@ -128,8 +123,8 @@ function void bootTest (bundle *b)
         endif
     endloop
     if quiet!="--quiet"
-        printf "\n*** NOTE: %.2f pct. of the %d bootstrap iterations failed due to instability. ***\n", 100*failed/b.bootrep, b.bootrep
-        printf "\n"
+        #printf "\n*** NOTE: %.2f pct. of the %d bootstrap iterations failed due to instability. ***\n", 100*failed/b.bootrep, b.bootrep
+        #printf "\n"
     endif
     b.cancel = cancel
     if cancel==0
@@ -191,7 +186,7 @@ end function
 function void drawE (bundle *b,
                      series *e)
     series uhat = b.uhat
-    #uhat = uhat-mean(uhat)	# FIXME: is re-centering needed here??
+    #uhat = uhat-mean(uhat)	# TODO: is re-centering needed here??
     if b.btype==0
         series e = normal(0,sd(uhat))	# parametric bootstrap
     elif b.btype==1
@@ -232,10 +227,10 @@ end function
 function bundle setMod (int whichTest[0:1:] "Test type" {"BDM", "PSS"},
                         int case[0:2:1] "Case" {"Unrestr. intercept", "restr. interc.", "restr. interc.+trend"},
                         const series Y "Endogenous",
-                        const list xlist "Exogenous regressors",
-                        const list rxlist[null] "List of addit. regressors",
+                        const list xlist "List of exogenous regressors",
+                        const list rxlist[null] "List of exogenous (no lags will be incl.)",
                         int pq[1::4] "Lag length in levels",
-                        int condARDL[0:1:1] "Add contempor. x-values" {"No (reduced form)", "Yes (conditional)"},
+                        bool condARDL[1] "Conditional model: 0=No, 1=Yes (default)",
                         int btype[0:4:1] "Type of bootstrap" {"0=parametric", "1=non-parametric", "2=wild uniform", "3=wild Rademacher", "4=block-boots."},
                         int bootrep[99::999],
                         scalar failstop[0.01:0.9:0.2] "Fraction of failed bootstrap iterations before full stop",
@@ -243,15 +238,14 @@ function bundle setMod (int whichTest[0:1:] "Test type" {"BDM", "PSS"},
     bundle b
     if case==2 && strstr(varname(rxlist), "time")==""
         printf "\n*** You've chosen to run case 2 but no time trend is provided in rxlist. ***\n"
-        printf "*** Please re-specify your model. ***\n"
-        stop
+        funcerr "*** Please re-specify your model. ***"
     endif
     scalar b.addDET = 0
-    if strstr(varname(rxlist), "const")!=""
+    if inlist(rxlist, "const")
         scalar b.addDET = 1
         rxlist -= const
     endif
-    if strstr(varname(rxlist), "time")!=""
+    if inlist(rxlist, "time")
         scalar b.addDET = 2
         rxlist -= rxlist.time
     endif
@@ -262,7 +256,7 @@ function bundle setMod (int whichTest[0:1:] "Test type" {"BDM", "PSS"},
     b.nrx = nelem(rxlist)
     b.pq = pq
     b.condARDL = condARDL
-    if b.condARDL==1
+    if b.condARDL
         b.pqmin = 0
     else
         b.pqmin = -1
@@ -272,11 +266,7 @@ function bundle setMod (int whichTest[0:1:] "Test type" {"BDM", "PSS"},
     b.btype = btype
     b.bootrep = bootrep
     b.failstop = failstop
-    if verb==1
-        string b.optsil = ""
-    else
-        string b.optsil = "--quiet"
-    endif
+    string b.optsil = (verb==1) ? "" : "--quiet"
     return b
 end function
 
@@ -326,20 +316,20 @@ function void runCoint (bundle *b)
         # Information of the null model for bootstrap
         matrix rARcoef = $coeff[b.ay:b.ey]		# AR coefficients
         b.rARcoef = rARcoef
-        if b.addDET>0
-            b.Zcoef = $coeff[1:(b.ay-1)] | $coeff[b.ey+1:]	# Deterministics + DL coeff needed for ysim()
+        scalar b.ax = b.ey + 1
+        if b.addDET > 0
+            b.Zcoef = $coeff[1:(b.ay-1)] | $coeff[b.ax:]	# Deterministics + DL coeff needed for ysim()
         else
-            b.Zcoef = $coeff[b.ey+1:]
-        endif
-        scalar b.ax = b.ey+1
-        scalar b.ex = b.ax + b.nx*(b.condARDL + b.pq)-1
+            b.Zcoef = $coeff[b.ax:]
+        endif        
+        scalar b.ex = b.ax + b.nx*(b.condARDL + b.pq) - 1
         # Run bootstrap Test()
         bootTest(&b)
         # Bootstrap p-value
         if b.cancel==0
             matstat = b.matstat
             b.crit =  quantile(b.matstat,{0.99, 0.95, 0.9})
-            rownames(b.crit, "99pct. 95pct. 90pct.")
+            rownames(b.crit, "99pct. 95pct. 90pct.")	# TODO: rnameset()
             b.pvboot = sum(abs(b.matstat).>= abs(b.teststat))/b.bootrep	# Compute scalar bootstrap p-value
             # Print results
             if b.optsil == ""
@@ -356,99 +346,3 @@ function void runCoint (bundle *b)
         matrix b.test = NA
     endif
 end function
-
-# sample function call
-set verbose off
-clear 
-include cointARDL.gfn
-#-----------
-# Example 1
-#-----------
-open denmark.gdt -q
-
-# Run the bootstrap version based on the ARDL
-list xlist = LRY IBO #IDE
-list rxlist = const #time
-scalar pq = 1
-scalar condARDL = 1			# 0=unconditional, 1=conditional ARDL
-scalar case = 1				# 0=unrestr. const., 1=restrc. const., 2=restr. const + restr. trend
-scalar btype = 4			# 0=parametric, 1=non-param, 2=wild, 3=wild+Rademacher distrib., 4=block-boot
-scalar bootrep = 999		# no. of iterations
-scalar failstop = 0.1		# max. fraction of unstable models
-scalar which = 1			# 0=BDM, 1=PSS test
-scalar verbose = 1			# 0=no details, 1=print details
-# Setup the ARDL model: y(t) = b0 + b1*y(t-1) + b2*x(t) + b3*x(t-1) + u(t)
-bundle b = setMod(which, case, LRM, xlist, rxlist, \
-  pq, condARDL, btype, bootrep, failstop, verbose)
-# Run bootstrap cointegration test
-runCoint(&b)
-print b			# print the bundle input
-
-# Grab relevant information from bundle b
-scalar cv5 = b.crit [2]
-# 5 pct . bootstrap critical value
-matrix bstats = b.matstat
-# vector of bootstrap test statistics
-matrix mplot = bstats ~( ones( rows( bstats ) ,1)* cv5 )~ seq(1 , rows( bstats ) ,) '
-colnames(mplot ," Test - stats critval5 seq ")
-# attache column names
-plot mplot
-    options with-lines fit=none
-end plot --output=display
-
-
-/* Activate if needed
-   #---------------------------------
-   # Example 2 -- Simulation example
-   #---------------------------------
-   clear
-   nulldata 200 --preserve
-   setobs 1 1 --special-time-series
-   scalar T = max(index)
-   set seed 1234
-   scalar m = 2            # Dimension of cov matrix
-   matrix covm = I(m)      # Simple case: identity matrix
-   covm[2,1]=0				# determine contemporanous correlation
-   covm[1,2]=covm[2,1]
-   matrix errmn = mnormal(T,cols(covm)) * cholesky(covm)' # drawnorm(covm,TT)
-   #eval mcorr(errmn)
-                    
-   series e1 = errmn[,1]
-   series e2 = errmn[,2]
-   scalar delta = 0#.01					# drift param. for x-process
-   series x = cum(delta+e1)				# DGP for x, simple RW(+drift)
-   scalar a = 0			# intercept
-   scalar phi = 0.9		# speed of adjustment param. rho=phi-1
-   scalar c0 = 0.5			# contemporanous effect of x
-   scalar c1 = -0.45		# 1st lag of x
-   series y = 0			# init. value
-   series y = a + phi*y(-1) + c0*x + c1*x(-1) + e2	# DGP: ARDL in levels
-   printf "\n************************************\n"
-   printf "Error-correction param. = %.3f\n", (phi-1)
-   printf "LR-beta multiplier = %.3f\n", (c0+c1)/(phi-1)
-   printf "************************************\n"
-
-   smpl index >= T/2 --restrict		# allow for burn-in phase
-   store "@dotdir/dtmp.gdt"
-   open "@dotdir/dtmp.gdt" -q
-   gnuplot x y --with-lines --time-series --output=display
-   # Run the bootstrap version based on the ARDL
-   list xlist = x
-   list rxlist = const time
-   scalar pq = 1			# lag length in levels
-   scalar condARDL = 1		# conditional ARDL: 0=NO, 1=YES
-   scalar case = 2			# 0=unrestr. intercept, 1=rest. intercept, 2=restr. const+trend
-   scalar btype = 1		# 0=parametric, 1=non-param, 2=wild, 3=wild+Rademacher distrib.
-   scalar bootrep = 1999
-   scalar failstop = 0.1	# max. percentage of failed stability
-   scalar which = 0		# 0=BDM, 1=PSS test
-   # Setup the model
-   bundle B = setMod(which, case, y, xlist, rxlist, \
-   pq, condARDL, btype, bootrep, failstop, 1)
-   # Run bootstrap cointegration test
-   runCoint(&B)
-   
-   # Johansen test for comparison
-   list endo = y x
-   coint2 pq y x #--rc
-*/
