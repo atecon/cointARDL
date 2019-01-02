@@ -423,7 +423,7 @@ return xx
 set verbose off
 clear 
 include cointARDL.gfn --force
-#include /home/at/git/cointARDL/cointARDL.gfn --force
+
 #-----------
 # Example 1
 #-----------
