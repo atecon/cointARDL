@@ -1,21 +1,10 @@
-# Create a new repository
-git clone git@scm.darnold.org:atecon/Gnuplot_Lib.git
-cd Gnuplot_Lib
-touch README.md
-git add README.md
-git commit -m "add README"
-git push -u origin master
+# Bootstrap cointegration tests based on ARDL models
 
-# Existing folder
-cd existing_folder
-git init
-git remote add origin git@scm.darnold.org:atecon/Gnuplot_Lib.git
-git add .
-git commit
-git push -u origin master
+This **Gretl** package is a collection of gretl scripts to conduct single-equation bootstrap cointegration tests based on the autoregressive distributed lag (ARDL).
 
-# Existing Git repository
-cd existing_repo
-git remote add origin git@scm.darnold.org:atecon/Gnuplot_Lib.git
-git push -u origin --all
-git push -u origin --tags
+The two tests are:
+1) BDM t-test by Banerjee, A., J. Dolado, and R. Mestre (1998), *Journal of Time Series Analysis*, 19(3), 267-283.
+2) F-test by Pesaran, M.H., Y. Shin and R.J. Smith (2001), "Bounds Testing Approaches to the Analysis of Level Relationships", *Journal of Applied Econometrics*, Special Issue in honour of J.D. Sargan on the Theme Studies in Empirical Macroeconometrics, D.F.
+ Hendry and M.H. Pesaran (eds.), 16, 289-326.
+
+
