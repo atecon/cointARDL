@@ -1,1 +1,92 @@
-DUMMY
+set verbose off
+clear
+
+function void Info (const string s)
+    printf "\nInfo: %s\n", s
+end function
+
+function void Warning (const string s)
+    printf "\nWarning: %s\n", s
+end function
+
+function void Error (const string s)
+    printf "\nError: %s\n", s
+end function
+
+
+function bundle test_to_int_mapping (void)
+    /*  Key-value mapping */
+    return _(BDM = 1, PSS = 2)
+end function
+
+
+function bundle case_to_int_mapping (void)
+    /*  Key-value mapping */
+    return _(urc = 1, rc = 2, rct = 3)
+end function
+
+
+function bundle bootstrap_to_int_mapping (void)
+    /*  Key-value mapping */
+    return _(parametric = 1,\
+                non_parametric = 2,\
+                wild_uniform = 3,\
+                wild_rademacher = 4)
+end function
+
+
+function bundle default_values (void)
+    /* Set default values here. */
+
+    bundle Defaults
+
+    string Defaults.name_test = "PSS"           # früher 'whichTest'
+    string Defaults.name_case = "rc"            # früher 'case'
+    scalar Defaults.lag_length = 4              # früher 'pq'
+    scalar Defaults.conditional_model = TRUE    # früher 'condARDL'
+    string Defaults.name_bootstrap = "non_parametric" # früher 'btype'
+    scalar Defaults.bootstrap_replications = 199    # früher 'bootrep'
+    scalar Defaults.stopping_fraction = 0.2         # früher 'failstop'
+    scalar Defaults.verbose = FALSE             # früher 'verb'
+
+    return Defaults
+end function
+
+
+function scalar case_and_trend_are_ok (const bundle self, const list rxlist)
+    /* Check that  */
+
+    if self.name_case == "rct" && inlist(rxlist, "time") == FALSE
+        Error("The case 'restricted intercept plus trend' requires that a time trend is included to the list of restricted exogenous.")
+        return FALSE
+    endif
+
+    return TRUE
+end function
+
+
+function bundle set_model (const series y "Endogenous",
+                           const list xlist "List of exogenous regressors",
+                           const list rxlist[null] "List of exogenous",
+                           const bundle Parameters[null])
+
+    bundle self
+    # TODO: in eigene Funktion
+    if exists(Parameters)
+        bundle self = Parameters
+    endif
+    self = self + default_values()
+ 
+
+    error = case_and_trend_are_ok(self, xlist)
+    if error == FALSE
+        self.error = TRUE
+        return self
+    endif
+
+
+
+
+    
+    return self
+end function

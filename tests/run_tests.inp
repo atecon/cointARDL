@@ -2,13 +2,110 @@ set verbose off
 clear
 
 set assert stop
-include assertion.gfn
+# include assertion.gfn
 
-include "./src/{{$PACKAGE_NAME}}.inp" --force
+include "./src/cointARDL.inp" --force
+
+function void test_test_to_int_mapping (void)
+    print "Start testing test_to_int_mapping()"
+
+    # Given
+    bundle expected = _(BDM = 1, PSS = 2)
+
+    # When
+    bundle actual = test_to_int_mapping()
+
+    # Then
+    assert(nelem(actual) == nelem(expected))
+    loop foreach i actual
+        assert(actual["$i"] == expected["$i"])
+    endloop
+end function
+test_test_to_int_mapping()
 
 
+function void test_case_to_int_mapping (void)
+    print "Start testing case_to_int_mapping()"
 
+    # Given
+    bundle expected = _(urc = 1, rc = 2, rct = 3)
+
+    # When
+    bundle actual = case_to_int_mapping()
+
+    # Then
+    assert(nelem(actual) == nelem(expected))
+    loop foreach i actual
+        assert(actual["$i"] == expected["$i"])
+    endloop
+end function
+test_case_to_int_mapping()
+
+
+function void test_bootstrap_to_int_mapping (void)
+    print "Start testing bootstrap_to_int_mapping()"
+
+    # Given
+    bundle expected = _(parametric = 1,\
+                        non_parametric = 2,\
+                        wild_uniform = 3,\
+                        wild_rademacher = 4)
+
+    # When
+    bundle actual = bootstrap_to_int_mapping()
+
+    # Then
+    assert(nelem(actual) == nelem(expected))
+    loop foreach i actual
+        assert(actual["$i"] == expected["$i"])
+    endloop
+end function
+test_bootstrap_to_int_mapping()
+
+
+function void test_default_values (void)
+    print "Start testing default_values()."
+
+    # Given
+    strings expected_keys = defarray("name_test",\
+                                "name_case",
+                                "lag_length",\
+                                "conditional_model",\
+                                "name_bootstrap",\
+                                "bootstrap_replications",\
+                                "stopping_fraction",\
+                                "verbose")
+
+    # When
+    bundle actual = default_values()
+
+    # Then
+    assert(nelem(actual) == nelem(expected_keys))
+    loop foreach i expected_keys
+        assert(inbundle(actual, expected_keys[i]) == TRUE)
+end function
+test_default_values()
+
+
+*** HIER WEITERMACHEN
+function void test_case_and_trend_are_ok (const list x)
+    print "Start testing case_and_trend_are_ok()."
+
+    # Given
+    given
+
+
+    # When
+    when
+
+
+    # Then
+    then
+end function
+test_case_and_trend_are_ok()
 
 
 print "Finished all tests succesfully."
 quit
+
+

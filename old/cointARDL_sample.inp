@@ -1,17 +1,26 @@
 set verbose off
-clear
-include cointARDL.inp --force
+clear 
+include cointARDL.gfn --force
 
+#-----------
+# Example 1
+#-----------
 open denmark.gdt -q
 
 # Run the bootstrap version based on the ARDL
-list xlist = LRY IBO
+list xlist = LRY IBO #IDE
 list rxlist = const
-
-bundle b = set_model(LRM, xlist, rxlist)
-b
-stop
-
+scalar pq = 2
+scalar condARDL = 1			# 0=unconditional, 1=conditional ARDL
+scalar case = 1				# 0=unrestr. const., 1=restrc. const., 2=restr. const + restr. trend
+scalar btype = 4			# 0=parametric, 1=non-param, 2=wild, 3=wild+Rademacher distrib., 4=block-boot
+scalar bootrep = 999			# no. of iterations
+scalar failstop = 0.1		# max. fraction of unstable models
+scalar which = 1			# 0=BDM, 1=PSS test
+scalar verbose = 1			# 0=no details, 1=print details
+# Setup the ARDL model: y(t) = b0 + b1*y(t-1) + b2*x(t) + b3*x(t-1) + u(t)
+bundle b = setMod(which, case, LRM, xlist, rxlist, \
+  pq, condARDL, btype, bootrep, failstop, verbose)
 # Run bootstrap cointegration test
 runCoint(&b)
 
