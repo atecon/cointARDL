@@ -156,6 +156,7 @@ end function
 function scalar model_is_stable (const bundle Model)
     /* Check for dynamic stability. */
 
+    /*
     1) Retrieve vector of AR coefficients:
         - read out Model.depvar
         - iterate through Model.parnames and search for indizes
@@ -168,7 +169,25 @@ function scalar model_is_stable (const bundle Model)
     scalar b.ey = b.ay+b.pq-1
     scalar err = 0
     arstabA($coeff[b.ay:b.ey],&err)
+    */
 
+    return 1
+end function
+
+
+function matrix get_ar_coefficients (const bundle Model)
+    /* Retrieve vector of AR coefficients. */
+
+    string depvar = Model.depvar
+    scalar n_chars = nelem(depvar)
+    strings parnames = Model.parnames
+    matrix c = {}
+    loop foreach i parnames
+        + MAKE USE of new string_utils.strprefix()
+        
+    endloop
+
+    return  variable
 end function
 
 
@@ -183,12 +202,10 @@ function scalar estimateModel (bundle *self "Bundel from setModel()")
     endif
     
     print Model
-    ** HIER WEITERMACHEN
     scalar is_stable = model_is_stable(Model)
 
     return FALSE
 end function
-
 
 
 

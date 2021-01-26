@@ -213,6 +213,30 @@ end function
 test_set_verbosity_string(Parameters)
 
 
+
+bundles Parameters = null
+Parameters = Parameters + _(depvar = "y",\
+                            parnames = defarray("const", "y_1", "x", "y_2"),\
+                            coeff = {4, 0.5, 1, 0.2}, expected = {0.5, 0.2})
+Parameters = Parameters + _(depvar = "y",\
+                            parnames = defarray("const", "x", "z"),\
+                            coeff = {4, 0.5, 1}, expected = {0})
+function void test_get_ar_coefficients (const bundles P)
+    print "Start testing get_ar_coefficients()"
+
+    loop foreach i P
+        # Given + When
+        matrix actual = get_ar_coefficients(P[i])
+        matrix expected = P[i].expected
+        # Then
+        assert(actual == expected)
+    endloop
+end function
+test_get_ar_coefficients(Parameters)
+
+
+
+
 function void test_estimate_model (void)
     print "Start testing estimate_model()"
 
