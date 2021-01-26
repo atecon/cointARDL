@@ -54,7 +54,7 @@ function bundle default_values (void)
 end function
 
 
-function scalar case_and_trend_are_ok (const bundle self, const list rxlist)
+function scalar check_case_and_trend (const bundle self, const list rxlist)
     /* Check that  */
 
     if self.name_case == "rct" && inlist(rxlist, "time") == FALSE
@@ -65,7 +65,7 @@ function scalar case_and_trend_are_ok (const bundle self, const list rxlist)
     return TRUE
 end function
 
-function scalar case_and_intercept_are_ok (const bundle self, const list rxlist)
+function scalar check_case_and_intercept (const bundle self, const list rxlist)
     /* Check that case */
 
     if (self.name_case == "rc" || self.name_case == "rct") && inlist(rxlist, "const") == FALSE
@@ -90,20 +90,21 @@ function string set_verbosity_string (const bundle self)
     return (self.verbose == TRUE) ? "--quiet" : ""
 end function
 
-function bundle set_model (const series y "Endogenous",
+function bundle setModel (const series y "Endogenous",
                            const list xlist "List of exogenous regressors",
                            const list rxlist[null] "List of exogenous",
                            const bundle Parameters[null])
 
     bundle self
+    self.error = FALSE
     # TODO: in eigene Funktion
     if exists(Parameters)
         bundle self = Parameters
     endif
     self = self + default_values()
  
-    error_1 = case_and_trend_are_ok(self, rxlist)
-    error_2 = case_and_intercept_are_ok(self, rxlist)
+    error_1 = check_case_and_trend(self, rxlist)
+    error_2 = check_case_and_intercept(self, rxlist)
     if error_1 + error_2 > 0
         self.error = TRUE
         return self
@@ -111,9 +112,6 @@ function bundle set_model (const series y "Endogenous",
 
     self.min_lag_length = set_min_lag_length(self)
     self.verbose_string = set_verbosity_string(self)
-    #*** HIER WEITERMACHEN
-
-
-    
+   
     return self
-end function
+end check_functi

@@ -96,8 +96,8 @@ Parameters = Parameters + _(name_case = "rct", incl_time_to_xlist = FALSE, expec
 Parameters = Parameters + _(name_case = "rct", incl_time_to_xlist = TRUE, expected = TRUE)
 Parameters = Parameters + _(name_case = "foo", incl_time_to_xlist = FALSE, expected = TRUE)
 Parameters = Parameters + _(name_case = "foo", incl_time_to_xlist = TRUE, expected = TRUE)
-function void test_case_and_trend_are_ok (const list x, const bundles P)
-    print "Start testing case_and_trend_are_ok()."
+function void test_check_case_and_trend (const list x, const bundles P)
+    print "Start testing check_case_and_trend()."
 
     loop foreach i P
         # Given
@@ -107,13 +107,13 @@ function void test_case_and_trend_are_ok (const list x, const bundles P)
         endif
 
         # When
-        actual = case_and_trend_are_ok(P[i], L)
+        actual = check_case_and_trend(P[i], L)
 
         # Then
         assert(actual == P[i].expected)
     endloop
 end function
-test_case_and_trend_are_ok(L, Parameters)
+test_check_case_and_trend(L, Parameters)
 
 
 
@@ -126,7 +126,7 @@ Parameters = Parameters + _(name_case = "rc", incl_const_to_xlist = FALSE, expec
 Parameters = Parameters + _(name_case = "rc", incl_const_to_xlist = TRUE, expected = TRUE)
 Parameters = Parameters + _(name_case = "foo", incl_const_to_xlist = FALSE, expected = TRUE)
 Parameters = Parameters + _(name_case = "foo", incl_const_to_xlist = TRUE, expected = TRUE)
-function void test_case_and_const_are_ok (const list x, const bundles P)
+function void test_check_case_and_const (const list x, const bundles P)
     print "Start testing case_and_intercept_are_ok()."
 
     loop foreach i P
@@ -143,7 +143,7 @@ function void test_case_and_const_are_ok (const list x, const bundles P)
         assert(actual == P[i].expected)
     endloop
 end function
-test_case_and_const_are_ok(L, Parameters)
+test_check_case_and_const(L, Parameters)
 
 
 bundles Parameters = null
@@ -178,6 +178,13 @@ function void test_set_verbosity_string (const bundles P)
     endloop
 end function
 test_set_verbosity_string(Parameters)
+
+
+
+
+
+# Integration tests
+# =================
 
 
 

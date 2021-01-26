@@ -8,7 +8,7 @@ open denmark.gdt -q
 list xlist = LRY IBO
 list rxlist = const
 
-bundle b = set_model(LRM, xlist, rxlist)
+bundle b = setModel(LRM, xlist, rxlist)
 b
 stop
 
