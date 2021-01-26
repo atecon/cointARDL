@@ -42,12 +42,13 @@ function bundle default_values (void)
 
     string B.name_test = "pss"           # früher 'whichTest'
     string B.name_case = "rc"            # früher 'case'
-    scalar B.lag_length = 4              # früher 'pq'
+    scalar B.max_lag_length = 4              # früher 'pq'
     scalar B.conditional_model = TRUE    # früher 'condARDL'
     string B.name_bootstrap = "non_parametric" # früher 'btype'
     scalar B.bootstrap_replications = 199    # früher 'bootrep'
     scalar B.stopping_fraction = 0.2         # früher 'failstop'
     scalar B.verbose = FALSE             # früher 'verb'
+    scalar B.with_intercept = TRUE      # früher 'addDET'
 
     return B
 end function
@@ -57,13 +58,37 @@ function scalar case_and_trend_are_ok (const bundle self, const list rxlist)
     /* Check that  */
 
     if self.name_case == "rct" && inlist(rxlist, "time") == FALSE
-        Error("The case 'restricted intercept plus trend' requires that a time trend is included to the list of restricted exogenous.")
+        Error("The case 'rct' requires that a time trend is included to the list of restricted exogenous.")
         return FALSE
     endif
 
     return TRUE
 end function
 
+function scalar case_and_intercept_are_ok (const bundle self, const list rxlist)
+    /* Check that case */
+
+    if (self.name_case == "rc" || self.name_case == "rct") && inlist(rxlist, "const") == FALSE
+        Error("The cases 'rc' or 'rct' require that an intercept is included to the list of restricted exogenous.")
+        return FALSE
+    endif
+
+    return TRUE
+end function
+
+
+function scalar set_min_lag_length (const bundle self)
+    /* Compute minimum lag-length. */
+
+    return self.conditional_model == TRUE ? 0 : 1
+end function
+
+
+function string set_verbosity_string (const bundle self)
+    /* Compile "quiet" string. */
+
+    return (self.verbose == TRUE) ? "--quiet" : ""
+end function
 
 function bundle set_model (const series y "Endogenous",
                            const list xlist "List of exogenous regressors",
@@ -77,15 +102,16 @@ function bundle set_model (const series y "Endogenous",
     endif
     self = self + default_values()
  
-
-    error = case_and_trend_are_ok(self, xlist)
-    if error == FALSE
+    error_1 = case_and_trend_are_ok(self, rxlist)
+    error_2 = case_and_intercept_are_ok(self, rxlist)
+    if error_1 + error_2 > 0
         self.error = TRUE
         return self
     endif
 
-
-    *** HIER WEITERMACHEN
+    self.min_lag_length = set_min_lag_length(self)
+    self.verbose_string = set_verbosity_string(self)
+    #*** HIER WEITERMACHEN
 
 
     

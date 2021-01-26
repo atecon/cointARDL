@@ -69,12 +69,13 @@ function void test_default_values (void)
     # Given
     strings expected_keys = defarray("name_test",\
                                 "name_case",
-                                "lag_length",\
+                                "max_lag_length",\
                                 "conditional_model",\
                                 "name_bootstrap",\
                                 "bootstrap_replications",\
                                 "stopping_fraction",\
-                                "verbose")
+                                "verbose",\
+                                "with_intercept")
 
     # When
     bundle actual = default_values()
@@ -116,6 +117,67 @@ test_case_and_trend_are_ok(L, Parameters)
 
 
 
+open denmark.gdt -q -p
+list L = dataset
+bundles Parameters = null
+Parameters = Parameters + _(name_case = "rct", incl_const_to_xlist = FALSE, expected = FALSE)
+Parameters = Parameters + _(name_case = "rct", incl_const_to_xlist = TRUE, expected = TRUE)
+Parameters = Parameters + _(name_case = "rc", incl_const_to_xlist = FALSE, expected = FALSE)
+Parameters = Parameters + _(name_case = "rc", incl_const_to_xlist = TRUE, expected = TRUE)
+Parameters = Parameters + _(name_case = "foo", incl_const_to_xlist = FALSE, expected = TRUE)
+Parameters = Parameters + _(name_case = "foo", incl_const_to_xlist = TRUE, expected = TRUE)
+function void test_case_and_const_are_ok (const list x, const bundles P)
+    print "Start testing case_and_intercept_are_ok()."
+
+    loop foreach i P
+        # Given
+        list L = x
+        if P[i].incl_const_to_xlist == TRUE
+            L += const
+        endif
+
+        # When
+        actual = case_and_intercept_are_ok(P[i], L)
+
+        # Then
+        assert(actual == P[i].expected)
+    endloop
+end function
+test_case_and_const_are_ok(L, Parameters)
+
+
+bundles Parameters = null
+Parameters = Parameters + _(conditional_model = TRUE, expected = 0)
+Parameters = Parameters + _(conditional_model = FALSE, expected = 1)
+function void test_set_min_lag_length (const bundles P)
+    print "Start testing set_min_lag_length()."
+
+    loop foreach i P
+        # Given + When
+        scalar actual = set_min_lag_length(P[i])
+
+        # Then
+        assert(actual == P[i].expected)
+    endloop
+end function
+test_set_min_lag_length(Parameters)
+
+
+bundles Parameters = null
+Parameters = Parameters + _(verbose = TRUE, expected = "--quiet")
+Parameters = Parameters + _(verbose = FALSE, expected = "")
+function void test_set_verbosity_string (const bundles P)
+    print "Start testing set_verbosity_string()."
+
+    loop foreach i P
+        # Given + When
+        string actual = set_verbosity_string(P[i])
+
+        # Then
+        assert(actual == P[i].expected)
+    endloop
+end function
+test_set_verbosity_string(Parameters)
 
 
 
