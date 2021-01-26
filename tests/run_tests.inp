@@ -10,7 +10,7 @@ function void test_test_to_int_mapping (void)
     print "Start testing test_to_int_mapping()"
 
     # Given
-    bundle expected = _(BDM = 1, PSS = 2)
+    bundle expected = _(bdm = 1, pss = 2)
 
     # When
     bundle actual = test_to_int_mapping()
@@ -82,27 +82,37 @@ function void test_default_values (void)
     # Then
     assert(nelem(actual) == nelem(expected_keys))
     loop foreach i expected_keys
-        assert(inbundle(actual, expected_keys[i]) == TRUE)
+        assert(inbundle(actual, expected_keys[i]) != 0)
+    endloop
 end function
 test_default_values()
 
 
-*** HIER WEITERMACHEN
-function void test_case_and_trend_are_ok (const list x)
+open denmark.gdt -q -p
+list L = dataset
+bundles Parameters = null
+Parameters = Parameters + _(name_case = "rct", incl_time_to_xlist = FALSE, expected = FALSE)
+Parameters = Parameters + _(name_case = "rct", incl_time_to_xlist = TRUE, expected = TRUE)
+Parameters = Parameters + _(name_case = "foo", incl_time_to_xlist = FALSE, expected = TRUE)
+Parameters = Parameters + _(name_case = "foo", incl_time_to_xlist = TRUE, expected = TRUE)
+function void test_case_and_trend_are_ok (const list x, const bundles P)
     print "Start testing case_and_trend_are_ok()."
 
-    # Given
-    given
+    loop foreach i P
+        # Given
+        list L = x
+        if P[i].incl_time_to_xlist == TRUE
+            L += time
+        endif
 
+        # When
+        actual = case_and_trend_are_ok(P[i], L)
 
-    # When
-    when
-
-
-    # Then
-    then
+        # Then
+        assert(actual == P[i].expected)
+    endloop
 end function
-test_case_and_trend_are_ok()
+test_case_and_trend_are_ok(L, Parameters)
 
 
 print "Finished all tests succesfully."

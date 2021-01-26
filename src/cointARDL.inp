@@ -16,7 +16,7 @@ end function
 
 function bundle test_to_int_mapping (void)
     /*  Key-value mapping */
-    return _(BDM = 1, PSS = 2)
+    return _(bdm = 1, pss = 2)
 end function
 
 
@@ -38,18 +38,18 @@ end function
 function bundle default_values (void)
     /* Set default values here. */
 
-    bundle Defaults
+    bundle B
 
-    string Defaults.name_test = "PSS"           # früher 'whichTest'
-    string Defaults.name_case = "rc"            # früher 'case'
-    scalar Defaults.lag_length = 4              # früher 'pq'
-    scalar Defaults.conditional_model = TRUE    # früher 'condARDL'
-    string Defaults.name_bootstrap = "non_parametric" # früher 'btype'
-    scalar Defaults.bootstrap_replications = 199    # früher 'bootrep'
-    scalar Defaults.stopping_fraction = 0.2         # früher 'failstop'
-    scalar Defaults.verbose = FALSE             # früher 'verb'
+    string B.name_test = "pss"           # früher 'whichTest'
+    string B.name_case = "rc"            # früher 'case'
+    scalar B.lag_length = 4              # früher 'pq'
+    scalar B.conditional_model = TRUE    # früher 'condARDL'
+    string B.name_bootstrap = "non_parametric" # früher 'btype'
+    scalar B.bootstrap_replications = 199    # früher 'bootrep'
+    scalar B.stopping_fraction = 0.2         # früher 'failstop'
+    scalar B.verbose = FALSE             # früher 'verb'
 
-    return Defaults
+    return B
 end function
 
 
