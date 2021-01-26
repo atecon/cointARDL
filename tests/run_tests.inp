@@ -228,14 +228,14 @@ function void test_get_ar_coefficients (const bundles P)
         # Given + When
         matrix actual = get_ar_coefficients(P[i])
         matrix expected = P[i].expected
+        
         # Then
-        assert(actual == expected)
+        assert(actual == expected')
     endloop
 end function
 test_get_ar_coefficients(Parameters)
 
-
-
+stop
 
 function void test_estimate_model (void)
     print "Start testing estimate_model()"

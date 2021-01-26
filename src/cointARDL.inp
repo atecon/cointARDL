@@ -1,3 +1,6 @@
+include string_utils.gfn
+
+
 function void Info (const string s)
     printf "\nInfo: %s\n", s
 end function
@@ -178,18 +181,18 @@ end function
 function matrix get_ar_coefficients (const bundle Model)
     /* Retrieve vector of AR coefficients. */
 
-    string depvar = Model.depvar
-    scalar n_chars = nelem(depvar)
+    # scalar n_chars_depvar = nelem(Model.depvar)
     strings parnames = Model.parnames
-    matrix c = {}
+    matrix ar_coeffs = {}
+    string starts_with = sprintf("%s_", Model.depvar) # e.g. 'y_<LAG>'
     loop foreach i parnames
-        + MAKE USE of new string_utils.strprefix()
-        
+        if strprefix("$i", starts_with)
+            ar_coeffs |= Model.coeff[i]
+        endif
     endloop
 
-    return  variable
+    return (nelem(ar_coeffs) == 0) ? {0} : ar_coeffs
 end function
-
 
 
 function scalar estimateModel (bundle *self "Bundel from setModel()")
