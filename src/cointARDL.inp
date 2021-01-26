@@ -159,24 +159,16 @@ end function
 function scalar model_is_stable (const bundle Model)
     /* Check for dynamic stability. */
 
-    /*
-    1) Retrieve vector of AR coefficients:
-        - read out Model.depvar
-        - iterate through Model.parnames and search for indizes
-        of strings starting with "y_"
-        - selifr(Model.coeff, mask)
-        - call arstabA()    
+    matrix ar_coeffs = get_ar_coefficients(Model)
+    scalar threshold = -0.00001
 
 
-    scalar b.ay = b.addDET + 1
-    scalar b.ey = b.ay+b.pq-1
-    scalar err = 0
-    arstabA($coeff[b.ay:b.ey],&err)
-    */
-
-    return 1
+    if ( sum(ar_coeffs) -1 ) > threshold
+        return FALSE
+    else
+        return TRUE
+    endif
 end function
-
 
 function matrix get_ar_coefficients (const bundle Model)
     /* Retrieve vector of AR coefficients. */
