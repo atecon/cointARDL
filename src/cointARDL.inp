@@ -1,6 +1,3 @@
-set verbose off
-clear
-
 function void Info (const string s)
     printf "\nInfo: %s\n", s
 end function
@@ -48,32 +45,33 @@ function bundle default_values (void)
     scalar B.bootstrap_replications = 199    # früher 'bootrep'
     scalar B.stopping_fraction = 0.2         # früher 'failstop'
     scalar B.verbose = FALSE             # früher 'verb'
-    scalar B.with_intercept = TRUE      # früher 'addDET'
+    string B.estimator = "ols"
 
     return B
 end function
 
 
-function scalar check_case_and_trend (const bundle self, const list rxlist)
+function scalar check_case_and_trend (const bundle self)
     /* Check that  */
 
-    if self.name_case == "rct" && inlist(rxlist, "time") == FALSE
+    if self.name_case == "rct" && self.with_linear_trend == FALSE
         Error("The case 'rct' requires that a time trend is included to the list of restricted exogenous.")
-        return FALSE
+        return TRUE
     endif
 
-    return TRUE
+    return FALSE
 end function
 
-function scalar check_case_and_intercept (const bundle self, const list rxlist)
+
+function scalar check_case_and_intercept (const bundle self)
     /* Check that case */
 
-    if (self.name_case == "rc" || self.name_case == "rct") && inlist(rxlist, "const") == FALSE
+    if (self.name_case == "rc" || self.name_case == "rct") && self.with_intercept == FALSE
         Error("The cases 'rc' or 'rct' require that an intercept is included to the list of restricted exogenous.")
-        return FALSE
+        return TRUE
     endif
 
-    return TRUE
+    return FALSE
 end function
 
 
@@ -90,27 +88,119 @@ function string set_verbosity_string (const bundle self)
     return (self.verbose == TRUE) ? "--quiet" : ""
 end function
 
+
+function scalar includes_intercept (const list L)
+    /* Check whether L includes 'const' series. */
+    return (inlist(L, "const") > 0) ? TRUE : FALSE
+end function
+
+function scalar includes_linear_trend (const list L)
+    /* Check whether L includes 'time' series. */
+    return (inlist(L, "time") > 0) ? TRUE : FALSE
+end function
+
+
 function bundle setModel (const series y "Endogenous",
                            const list xlist "List of exogenous regressors",
                            const list rxlist[null] "List of exogenous",
                            const bundle Parameters[null])
-
     bundle self
     self.error = FALSE
     if exists(Parameters)
         bundle self = Parameters
     endif
     self = self + default_values()
+
+    scalar self.with_intercept = includes_intercept(rxlist)
+    scalar self.with_linear_trend = includes_linear_trend(rxlist)
  
-    error_1 = check_case_and_trend(self, rxlist)
-    error_2 = check_case_and_intercept(self, rxlist)
-    if error_1 + error_2 > 0
-        self.error = TRUE
+    self.error += check_case_and_trend(self)
+    self.error += check_case_and_intercept(self)
+    print self
+    if self.error > 0
         return self
     endif
 
     self.min_lag_length = set_min_lag_length(self)
     self.verbose_string = set_verbosity_string(self)
-   
+
+    series self.y = y
+    list self.xlist = xlist
+    list self.rxlist = rxlist
+
     return self
 end function
+
+
+function bundle estimate_model (const bundle self)
+    /* Run actual model estimation. Return model bundle. */
+
+    bundle B
+
+    series y = self.y
+    list xlist = self.xlist
+    list rxlist = self.rxlist
+    string verbose_string = self.verbose_string
+
+    if self.estimator == "ols"
+        ols y y(-1 to -self.max_lag_length) xlist(self.min_lag_length to -self.max_lag_length) rxlist @verbose_string
+    else
+        Error(sprintf("Estimator '%s' is not supported.", self.estimator))
+        return B
+    endif
+
+    return $model
+end function
+
+
+function scalar model_is_stable (const bundle Model)
+    /* Check for dynamic stability. */
+
+    1) Retrieve vector of AR coefficients:
+        - read out Model.depvar
+        - iterate through Model.parnames and search for indizes
+        of strings starting with "y_"
+        - selifr(Model.coeff, mask)
+        - call arstabA()    
+
+
+    scalar b.ay = b.addDET + 1
+    scalar b.ey = b.ay+b.pq-1
+    scalar err = 0
+    arstabA($coeff[b.ay:b.ey],&err)
+
+end function
+
+
+
+function scalar estimateModel (bundle *self "Bundel from setModel()")
+    /* Estimate model and compute cointegration results. 
+    Return TRUE in case of an error, otherwise FALSE. */
+
+    Model = estimate_model(self)
+    if nelem(Model) == 0
+        return TRUE
+    endif
+    
+    print Model
+    ** HIER WEITERMACHEN
+    scalar is_stable = model_is_stable(Model)
+
+    return FALSE
+end function
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

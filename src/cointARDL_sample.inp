@@ -1,6 +1,7 @@
-set verbose off
+# set verbose off
 clear
-include cointARDL.inp --force
+
+include "/home/ninja/repo/cointARDL/src/cointARDL.inp" --force
 
 open denmark.gdt -q
 
@@ -9,11 +10,12 @@ list xlist = LRY IBO
 list rxlist = const
 
 bundle b = setModel(LRM, xlist, rxlist)
-b
-stop
 
 # Run bootstrap cointegration test
-runCoint(&b)
+estimateModel(&b)
+#print b
+stop
+
 
 # Grab relevant information from bundle b
 scalar cv5 = b.crit [2]

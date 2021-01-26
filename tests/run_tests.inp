@@ -75,7 +75,7 @@ function void test_default_values (void)
                                 "bootstrap_replications",\
                                 "stopping_fraction",\
                                 "verbose",\
-                                "with_intercept")
+                                "estimator")
 
     # When
     bundle actual = default_values()
@@ -92,12 +92,10 @@ test_default_values()
 open denmark.gdt -q -p
 list L = dataset
 bundles Parameters = null
-Parameters = Parameters + _(name_case = "rct", incl_time_to_xlist = FALSE, expected = FALSE)
-Parameters = Parameters + _(name_case = "rct", incl_time_to_xlist = TRUE, expected = TRUE)
-Parameters = Parameters + _(name_case = "foo", incl_time_to_xlist = FALSE, expected = TRUE)
-Parameters = Parameters + _(name_case = "foo", incl_time_to_xlist = TRUE, expected = TRUE)
-function void test_check_case_and_trend (const list x, const bundles P)
-    print "Start testing check_case_and_trend()."
+Parameters = Parameters + _(incl_time_to_xlist = FALSE, expected = FALSE)
+Parameters = Parameters + _(incl_time_to_xlist = TRUE, expected = TRUE)
+function void test_includes_linear_trend (const list x, const bundles P)
+    print "Start testing includes_linear_trend()."
 
     loop foreach i P
         # Given
@@ -107,43 +105,78 @@ function void test_check_case_and_trend (const list x, const bundles P)
         endif
 
         # When
-        actual = check_case_and_trend(P[i], L)
+        actual = includes_linear_trend(L)
 
         # Then
         assert(actual == P[i].expected)
     endloop
 end function
-test_check_case_and_trend(L, Parameters)
-
+test_includes_linear_trend(L, Parameters)
 
 
 open denmark.gdt -q -p
 list L = dataset
 bundles Parameters = null
-Parameters = Parameters + _(name_case = "rct", incl_const_to_xlist = FALSE, expected = FALSE)
-Parameters = Parameters + _(name_case = "rct", incl_const_to_xlist = TRUE, expected = TRUE)
-Parameters = Parameters + _(name_case = "rc", incl_const_to_xlist = FALSE, expected = FALSE)
-Parameters = Parameters + _(name_case = "rc", incl_const_to_xlist = TRUE, expected = TRUE)
-Parameters = Parameters + _(name_case = "foo", incl_const_to_xlist = FALSE, expected = TRUE)
-Parameters = Parameters + _(name_case = "foo", incl_const_to_xlist = TRUE, expected = TRUE)
-function void test_check_case_and_const (const list x, const bundles P)
-    print "Start testing check_case_and_intercept()."
+Parameters = Parameters + _(incl_intercept = FALSE, expected = FALSE)
+Parameters = Parameters + _(incl_intercept = TRUE, expected = TRUE)
+function void test_includes_intercept (const list x, const bundles P)
+    print "Start testing includes_intercept()."
 
     loop foreach i P
         # Given
         list L = x
-        if P[i].incl_const_to_xlist == TRUE
+        if P[i].incl_intercept == TRUE
             L += const
         endif
 
         # When
-        actual = check_case_and_intercept(P[i], L)
+        actual = includes_intercept(L)
 
         # Then
         assert(actual == P[i].expected)
     endloop
 end function
-test_check_case_and_const(L, Parameters)
+test_includes_intercept(L, Parameters)
+
+
+bundles Parameters = null
+Parameters = Parameters + _(name_case = "rct", with_linear_trend = FALSE, expected = TRUE)
+Parameters = Parameters + _(name_case = "rct", with_linear_trend = TRUE, expected = FALSE)
+Parameters = Parameters + _(name_case = "foo", with_linear_trend = FALSE, expected = FALSE)
+Parameters = Parameters + _(name_case = "foo", with_linear_trend = TRUE, expected = FALSE)
+function void test_check_case_and_trend (const bundles P)
+    print "Start testing check_case_and_trend()."
+
+    loop foreach i P
+        # Given + When
+        actual = check_case_and_trend(P[i])
+
+        # Then
+        assert(actual == P[i].expected)
+    endloop
+end function
+test_check_case_and_trend(Parameters)
+
+
+bundles Parameters = null
+Parameters = Parameters + _(name_case = "rct", with_intercept = FALSE, expected = TRUE)
+Parameters = Parameters + _(name_case = "rct", with_intercept = TRUE, expected = FALSE)
+Parameters = Parameters + _(name_case = "rc", with_intercept = FALSE, expected = TRUE)
+Parameters = Parameters + _(name_case = "rc", with_intercept = TRUE, expected = FALSE)
+Parameters = Parameters + _(name_case = "foo", with_intercept = FALSE, expected = FALSE)
+Parameters = Parameters + _(name_case = "foo", with_intercept = TRUE, expected = FALSE)
+function void test_check_case_and_intercept (const bundles P)
+    print "Start testing check_case_and_intercept()."
+
+    loop foreach i P
+        # Given + When
+        actual = check_case_and_intercept(P[i])
+
+        # Then
+        assert(actual == P[i].expected)
+    endloop
+end function
+test_check_case_and_intercept(Parameters)
 
 
 bundles Parameters = null
@@ -180,6 +213,16 @@ end function
 test_set_verbosity_string(Parameters)
 
 
+function void test_estimate_model (void)
+    print "Start testing estimate_model()"
+
+    # Given
+
+    # When
+
+    # Then
+end function
+test_estimate_model()
 
 
 
