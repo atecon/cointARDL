@@ -85,6 +85,7 @@ function bundle set_model (const series y "Endogenous",
     endif
 
 
+    *** HIER WEITERMACHEN
 
 
     
