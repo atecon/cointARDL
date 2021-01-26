@@ -127,7 +127,7 @@ Parameters = Parameters + _(name_case = "rc", incl_const_to_xlist = TRUE, expect
 Parameters = Parameters + _(name_case = "foo", incl_const_to_xlist = FALSE, expected = TRUE)
 Parameters = Parameters + _(name_case = "foo", incl_const_to_xlist = TRUE, expected = TRUE)
 function void test_check_case_and_const (const list x, const bundles P)
-    print "Start testing case_and_intercept_are_ok()."
+    print "Start testing check_case_and_intercept()."
 
     loop foreach i P
         # Given
@@ -137,7 +137,7 @@ function void test_check_case_and_const (const list x, const bundles P)
         endif
 
         # When
-        actual = case_and_intercept_are_ok(P[i], L)
+        actual = check_case_and_intercept(P[i], L)
 
         # Then
         assert(actual == P[i].expected)
