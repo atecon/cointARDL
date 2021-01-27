@@ -7,7 +7,7 @@ open denmark.gdt -q
 
 # Run the bootstrap version based on the ARDL
 list xlist = LRY IBO
-list rxlist = const
+list rxlist = const time
 
 bundle b = setModel(LRM, xlist, rxlist)
 

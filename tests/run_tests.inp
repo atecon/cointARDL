@@ -213,43 +213,60 @@ end function
 test_set_verbosity_string(Parameters)
 
 
-
 bundles Parameters = null
-Parameters = Parameters + _(depvar = "y",\
-                            parnames = defarray("const", "y_1", "x", "y_2"),\
-                            coeff = {4, 0.5, 1, 0.2}, expected = {0.5, 0.2})
-Parameters = Parameters + _(depvar = "y",\
-                            parnames = defarray("const", "x", "z"),\
-                            coeff = {4, 0.5, 1}, expected = {0})
-function void test_get_ar_coefficients (const bundles P)
-    print "Start testing get_ar_coefficients()"
+Parameters = Parameters + _(searched = defarray("const", "y_1", "x", "y_2"),\
+                            starts_with = "y_", expected = {0, 1, 0, 1})
+Parameters = Parameters + _(searched = defarray(""),\
+                            starts_with = "y_", expected = {0})
+Parameters = Parameters + _(searched = defarray("a", "b", "c", "d"),\
+                            starts_with = "y_", expected = {0, 0, 0, 0})
+Parameters = Parameters + _(searched = defarray("Ay_1", "Xy_1", "y_2", "y"),\
+                            starts_with = "y_", expected = {0, 0, 1, 0})
+function void test_strstarts_array (const bundles P)
+    print "Start testing strstarts_array()."
 
     loop foreach i P
         # Given + When
-        matrix actual = get_ar_coefficients(P[i])
-        matrix expected = P[i].expected
+        matrix actual = strstarts_array(P[i].searched, P[i].starts_with)
+        matrix expected = P[i].expected'
 
         # Then
-        assert(actual == expected')
+        assert(actual == expected)
     endloop
 end function
-test_get_ar_coefficients(Parameters)
+test_strstarts_array(Parameters)
 
 
-*** HIER WEITERMACHEN
+bundles Parameters = null
+Parameters = Parameters + _(starts_with = "y_",\
+                            parnames = defarray("const", "y_1", "x", "y_2"),\
+                            coeff = {4, 0.5, 1, 0.2}', expected = {0.5, 0.2}')
+Parameters = Parameters + _(starts_with = "y_",\
+                            parnames = defarray("const", "x", "z"),\
+                            coeff = {4, 0.5, 1}', expected = {0}')
+function void test_get_vector_values_by_name (const bundles P)
+    print "Start testing get_vector_values_by_name()"
+
+    loop foreach i P
+        # Given + When
+        matrix actual = get_vector_values_by_name(P[i].coeff,\
+                                        P[i].parnames, P[i].starts_with)
+
+        # Then
+        assert(actual == P[i].expected)
+    endloop
+end function
+test_get_vector_values_by_name(Parameters)
+
+
 function void test_model_is_stable ()
     print "Start testing model_is_stable()"
 
     # Given
-    given
-
 
     # When
-    when
-
 
     # Then
-    then
 end function
 test_model_is_stable()
 

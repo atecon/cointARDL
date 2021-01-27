@@ -146,44 +146,85 @@ function bundle estimate_model (const bundle self)
     string verbose_string = self.verbose_string
 
     if self.estimator == "ols"
-        ols y y(-1 to -self.max_lag_length) xlist(self.min_lag_length to -self.max_lag_length) rxlist @verbose_string
+        catch ols y y(-1 to -self.max_lag_length) xlist(self.min_lag_length to -self.max_lag_length) rxlist @verbose_string
     else
         Error(sprintf("Estimator '%s' is not supported.", self.estimator))
         return B
     endif
 
+    if $error
+        Error("Model estimation failed.")
+        return B
+    endif
+
+    B = $model
+
+    if self.estimator == "ols"
+        B.uhat = $uhat
+    endif
+
+
+    # Test the null of no long-run relationship
+    if self.name_test == "pss"
+
+        
+    elif self.name_test == "bdm"
+        
+    endif
+    
+
     return $model
+end function
+
+
+function matrix strstarts_array (const strings sarr, const string starts_with)
+    /* Generalization of the string_utils' function strstarts() for arrays.
+    Returns a boolean mask vector for strings that start with 'starts-with'. */
+
+    if nelem(sarr) == 0
+        Warning("String array is empty.")
+        return {0}
+    endif
+
+    matrix mask = mshape(NA, nelem(sarr), 1)
+    loop foreach i sarr
+        mask[i] = strstarts(sarr[i], starts_with)
+    endloop
+
+    return mask
 end function
 
 
 function scalar model_is_stable (const bundle Model)
     /* Check for dynamic stability. */
 
-    matrix ar_coeffs = get_ar_coefficients(Model)
+    # Search for <nameEndogenous_*> e.g. y_1, y_2 etc.
+    string starts_with = sprintf("%s_", Model.depvar)
+    matrix ar_coeffs = get_vector_values_by_name(Model.coeffs,\
+                                            Model.parnames, starts_with)
     scalar threshold = -0.00001
 
-
-    if ( sum(ar_coeffs) -1 ) > threshold
+    if (sum(ar_coeffs) - 1) > threshold
+        Error("The specified model is dynamically unstable.")
         return FALSE
     else
         return TRUE
     endif
 end function
 
-function matrix get_ar_coefficients (const bundle Model)
-    /* Retrieve vector of AR coefficients. */
 
-    # scalar n_chars_depvar = nelem(Model.depvar)
-    strings parnames = Model.parnames
-    matrix ar_coeffs = {}
-    string starts_with = sprintf("%s_", Model.depvar) # e.g. 'y_<LAG>'
-    loop foreach i parnames
-        if strprefix("$i", starts_with)
-            ar_coeffs |= Model.coeff[i]
-        endif
-    endloop
+function matrix get_vector_values_by_name (matrix coeff "Column vector",
+                                           const strings names "Names of 'coeff' entries",
+                                           const string starts_with "Search for 'names' that start with it")
+    /* Retrieve from 'coeff' the vector of coefficients whose i-th 'names' entry starts with 'starts_with'. */
 
-    return (nelem(ar_coeffs) == 0) ? {0} : ar_coeffs
+    coeff = vec(coeff)
+    errorif(nelem(names) != nelem(coeff), "Dimension mismatch")
+
+    matrix mask = strstarts_array(names, starts_with)
+    coeff_selected = selifr(coeff, mask)
+
+    return (nelem(coeff_selected) == 0) ? {0} : coeff_selected
 end function
 
 
@@ -196,17 +237,14 @@ function scalar estimateModel (bundle *self "Bundel from setModel()")
         return TRUE
     endif
     
-    print Model
     scalar is_stable = model_is_stable(Model)
+    if !is_stable
+        sels.error = TRUE
+        return TRUE
+    endif
 
     return FALSE
 end function
-
-
-
-
-
-
 
 
 
