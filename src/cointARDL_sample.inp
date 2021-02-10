@@ -45,7 +45,7 @@ end plot --output=display
    covm[1,2]=covm[2,1]
    matrix errmn = mnormal(T,cols(covm)) * cholesky(covm)' # drawnorm(covm,TT)
    #eval mcorr(errmn)
-                    
+
    series e1 = errmn[,1]
    series e2 = errmn[,2]
    scalar delta = 0#.01					# drift param. for x-process
@@ -80,7 +80,7 @@ end plot --output=display
    pq, condARDL, btype, bootrep, failstop, 1)
    # Run bootstrap cointegration test
    runCoint(&B)
-   
+
    # Johansen test for comparison
    list endo = y x
    coint2 pq y x #--rc

@@ -105,9 +105,9 @@ end function
 
 
 function bundle setModel (const series y "Endogenous",
-                           const list xlist "List of exogenous regressors",
-                           const list rxlist[null] "List of exogenous",
-                           const bundle Parameters[null])
+                          const list xlist "List of exogenous regressors",
+                          const list rxlist[null] "List of exogenous",
+                          const bundle Parameters[null])
     bundle self
     self.error = FALSE
     if exists(Parameters)
@@ -120,7 +120,6 @@ function bundle setModel (const series y "Endogenous",
 
     self.error += check_case_and_trend(self)
     self.error += check_case_and_intercept(self)
-    print self
     if self.error > 0
         return self
     endif
@@ -241,61 +240,98 @@ function scalar WaldTest(const matrix coeff,
 end function
 */
 
+function bundle map_n_deterministics (void)
+    /* Map for each case the number of deterministics */
 
-function bundle r_and_q_wald_bdm (const bundle Model)
+    return _(urc = 0, rc = 1, rct = 2)
+end function
+
+function matrix initialize_Rmat (const int n_arcoeffs[1::],
+                                 const int n_coeffs[1::],
+                                 const string name_case)
+    /* Initialize restriction matrix. */
+    scalar nd = map_n_deterministics()[name_case]
+    nrows = n_arcoeffs + nd
+    return zeros(nrows, n_coeffs)
+end function
+
+
+function bundle r_and_q_wald_bdm (const bundle Model,
+                                  const bundle self)
     /* Prepare R matrix and q vector for BDM-based Wald test. */
 
-    matrix Rmat = zeros((1+case), nall)
-    if case == 0
+    # restrict AR coefficients
+    string starts_with = sprintf("%s_", Model.depvar)
+    mask = strstarts_array(Model.parnames, starts_with)
+    matrix positions_ar_coeffs = selifr(seq(1, rows(mask))', mask)
+
+    matrix Rmat = initialize_Rmat(rows(positions_ar_coeffs),\
+                                  rows(Model.coeff),\
+                                  self.name_case)
+    scalar pos_const = imaxc(strstarts_array(Model.parnames, "const"))
+    pos_time = imaxc(strstarts_array(Model.parnames, "time"))
+
+    scalar n_deter = map_n_deterministics()[self.name_case]
+
+    if self.name_case == "urc"
         matrix qvec = {1}
-    elif case == 1
-        Rmat[1,1] = 1           # restrict const
-        matrix qvec = zeros(1,1) | {1}
-    elif case == 2
-        Rmat[1,1] = 1           # restrict const, unrestri. trend
-        Rmat[2,2] = 1           # restrict trend
-        matrix qvec = zeros(2,1) | {1}
+    elif self.name_case == "rc"
+        Rmat[pos_const, pos_const] = 1
+        matrix qvec = zeros(n_deter, 1) | {1}
+    elif self.name_case == "rct"
+        Rmat[pos_const, pos_const] = 1
+        Rmat[pos_time, pos_time] = 1
+        matrix qvec = zeros(n_deter, 1) | {1}
     endif
-    Rmat[(1+case), b.ay:b.ey] = 1      # restrict AR coefficients
+
+    loop i=1..rows(positions_ar_coeffs)
+        Rmat[(n_deter + i), positions_ar_coeffs[i]] = 1
+    endloop
 
     return _(Rmat, qvec)
 end function
 
 
-function matrix prepare_Rq (const bundle Model)
+function matrix prepare_Rq (const bundle Model,
+                            const bundle self)
     /* Preparation for R matrix and q vector for linear Wald test. */
 
-    # BDM test
-    if Model.name_test == "bdm"
-        bundle Rb = r_and_q_wald_bdm(Model)
-    elif Model.name_test == "pss"
-        bundle Rb = r_and_q_wald_pss(Model)
+    if self.name_test == "bdm"
+        bundle Rb = r_and_q_wald_bdm(Model, self)
+    elif self.name_test == "pss"
+        # FIXME: adapt for pss version
+        bundle Rb = r_and_q_wald_bdm(Model, self)
     endif
 
+    *** Mit r_and_q_wald_pss() weitermachen: Bause of BDM Version auf und erweitere qvec durch weitere Restriktionen der exogenen Niveau-Variablen
 
-    else # PSS test
-        if b.case==0
-            matrix Rmat = zeros(1+b.nx,b.nall)  # unrestr. const.
-            matrix qvec = {1} | zeros(b.nx,1)
-        elif b.case==1
-            matrix Rmat = zeros(2+b.nx,b.nall)  # restr. const
-            Rmat[1,1] = 1
-            matrix qvec = zeros(1,1) | {1} | zeros(b.nx,1)
-        elif b.case==2
-            matrix Rmat = zeros(3+b.nx,b.nall)  # restr. const + time
-            Rmat[1,1] = 1
-            Rmat[2,2] = 1
-            matrix qvec = zeros(2,1) | {1} | zeros(b.nx,1)
-        endif
-        Rmat[(1+b.case), b.ay:b.ey]=1           # for rho
-        scalar ax = b.ey+1
-        scalar ex = ax+(b.condARDL + b.pq)-1
-        loop i=(2+b.case)..(1+b.case+b.nx) -q
-            Rmat[i,ax:ex] = 1        # Sum coefficients up
-            ax = ex+1
-            ex = ax+(b.condARDL + b.pq)-1
-        endloop
+    Rb
+    stop
+
+
+    # PSS test
+    if b.case==0
+        matrix Rmat = zeros(1+b.nx,b.nall)  # unrestr. const.
+        matrix qvec = {1} | zeros(b.nx,1)
+    elif b.case==1
+        matrix Rmat = zeros(2+b.nx,b.nall)  # restr. const
+        Rmat[1,1] = 1
+        matrix qvec = zeros(1,1) | {1} | zeros(b.nx,1)
+    elif b.case==2
+        matrix Rmat = zeros(3+b.nx,b.nall)  # restr. const + time
+        Rmat[1,1] = 1
+        Rmat[2,2] = 1
+        matrix qvec = zeros(2,1) | {1} | zeros(b.nx,1)
     endif
+    Rmat[(1+b.case), b.ay:b.ey]=1           # for rho
+    scalar ax = b.ey+1
+    scalar ex = ax+(b.condARDL + b.pq)-1
+    loop i=(2+b.case)..(1+b.case+b.nx) -q
+        Rmat[i,ax:ex] = 1        # Sum coefficients up
+        ax = ex+1
+        ex = ax+(b.condARDL + b.pq)-1
+    endloop
+
     b.qvec = qvec
     b.Rmat = Rmat
 end function
@@ -320,6 +356,9 @@ function scalar estimateModel (bundle *self "Bundel from setModel()")
         sels.error = TRUE
         return TRUE
     endif
+
+
+    prepare_Rq(Model, self)
 
     #*** mit prepare_Rq() weitermachen
 
