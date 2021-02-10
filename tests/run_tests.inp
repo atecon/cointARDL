@@ -75,7 +75,8 @@ function void test_default_values (void)
                                 "bootstrap_replications",\
                                 "stopping_fraction",\
                                 "verbose",\
-                                "estimator")
+                                "estimator",
+                                "stability_threshold")
 
     # When
     bundle actual = default_values()
