@@ -272,6 +272,22 @@ end function
 test_model_is_stable()
 
 
+function void test_initialize_Rmat (void)
+    print "Start testing initialize_Rmat()."
+
+    # Given
+    given
+
+
+    # When
+    when
+
+
+    # Then
+    then
+end function
+test_initialize_Rmat()
+
 
 function void test_estimate_model (void)
     print "Start testing estimate_model()"
