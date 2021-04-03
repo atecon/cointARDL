@@ -1,10 +1,10 @@
 author = Artur Tarassow
-email = atecon@cryptolab.net
-version = 0.7
-date = 2018-12-26
+email = atecon@posteo.de
+version = 0.8
+date = 2021-04-03
 description = Bootstrap single-eq. cointegration tests
 tags = C12 C20
-min-version = 2016d
+min-version = 2020b
 data-requirement = needs-time-series-data
 public = setMod runCoint
 help = cointARDL.pdf
