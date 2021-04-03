@@ -42,6 +42,8 @@ function void prepRq (bundle *b)
 end function
 
 function void printTest (bundle *b)
+    /* */
+
     printf "\n*****************************************************\n"
     if b.whichTest==0
         printf "*** BDM bootstrap t-Test based on ARDL(%d,%d) model ***\n", b.pq, b.pq
@@ -49,6 +51,7 @@ function void printTest (bundle *b)
         printf "*** PSS bootstrap F-Test based on ARDL(%d,%d) model ***\n", b.pq, b.pq
     endif
     printf "*****************************************************\n"
+
     printf "Restriction case:\n"
     if b.case==0
         printf "Unrestricted constant\n"
@@ -57,6 +60,7 @@ function void printTest (bundle *b)
     elif b.case==2
         printf "Restricted constant and restricted trend\n"
     endif
+
     printf "Bootstrap type: "
     if b.btype==0
         string btype = "parametric"
@@ -69,16 +73,21 @@ function void printTest (bundle *b)
     elif b.btype==4
         string btype = "block-bootstrap"
     endif
+
     printf "Bootstrap replications: %d\n", b.bootrep
     printf "\nInitial test statistics = %.3f\n", b.teststat
     printf "\nCritical values:\n       1pct.  \t 5pct.  \t 10pct.\n"
     printf "%12.3f\n", b.crit'
     printf "Bootstrap p-value = %.3f\n", b.pvboot
-    printf "Percentage of failed iterations = %.2f\n", 100*b.failed/b.bootrep
+    printf "Percentage of failed iterations = %.2f\n",\
+        (100 * b.failed / b.bootrep)
     printf "******************************************************\n"
 end function
 
-function void bootTest (bundle *b)    
+
+function void bootTest (bundle *b)
+    /* Bootstrap-bases cointegration test. */
+
     matrix Rmat = b.Rmat
     matrix qvec = b.qvec
     series Y = b.my
@@ -89,32 +98,39 @@ function void bootTest (bundle *b)
     lags Y xlist
     list Z = lDET xlist(b.pqmin to -b.pq) rxlist
     matrix Xbeta = b.Zcoef
-    matrix matstat = zeros(b.bootrep,1)
+    matrix matstat = zeros(b.bootrep, 1)
     scalar nloop=1
     scalar failed = 0
     scalar failstop = 0.35
-    scalar cancel = 0
+    scalar b.error = FALSE
+    scalar b.failed = 0
     scalar btype = b.btype
-    loop while nloop <= b.bootrep -q
+
+    loop while nloop <= b.bootrep
         series e = 0
-        drawE(&b,&e)
+        drawE(&b, &e)
+
         # Simulate the null model (no long-run relationship)
-        series y_b = zeromiss(0)
+        series y_b = NA
         varsimA(Y, b.rARcoef, Z, Xbeta, e, b.pq, &y_b)
         lags y_b 1
+
         # Estimate the alt model based on the the null model DGP
-        catch ols y_b lDET y_b(-1 to -b.pq) xlist(b.pqmin to -b.pq) rxlist --quiet
-        if nelem($xlist)!=cols(Rmat) || (sum($coeff[b.ay:b.ey])-1)>-0.00001
-            failed++
-            if failed/b.bootrep >= b.failstop
-                #printf "*** ERROR: %d pct. of the bootstrap iterations failed due to instability. ***\n", 100*b.failstop
-                printf "*** You should re-consider to re-specify your model. ***\n"
-                cancel=1
-                break
-            endif
+        catch ols y_b lDET y_b(-1 to -b.pq) xlist(b.pqmin to -b.pq) \
+            rxlist --quiet
+
+        if nelem($xlist) != cols(Rmat) || !is_stable_model($coeff[b.ay:b.ey])
+            b.failed++
+        endif
+
+        if b.failed / b.bootrep >= b.failstop
+            printf "\nError: Simulated too many unstable models. Abort.\n"
+            flush
+            b.error = TRUE
+            break
         else
             # Run the restriction of the estimated alt model based on null model dgp
-            restrict --silent		 # H0: SUM(a_j)-1=0 --> in ECM: rho=0
+            restrict --silent	 # H0: SUM(a_j)-1=0 --> in ECM: rho=0
                 R = Rmat
                 q = qvec
             end restrict
@@ -122,15 +138,17 @@ function void bootTest (bundle *b)
             nloop++
         endif
     endloop
-    if quiet!="--quiet"
-        #printf "\n*** NOTE: %.2f pct. of the %d bootstrap iterations failed due to instability. ***\n", 100*failed/b.bootrep, b.bootrep
-        #printf "\n"
+
+    if quiet != "--quiet"
+        printf "\nInfo: %.2f pct. of the %d bootstrap iterations failed\n\
+            due to instability.\n", (100 * b.failed / b.bootrep), b.bootrep
+        flush
     endif
-    b.cancel = cancel
-    if cancel==0
-        b.failed = failed
+
+    if b.error == FALSE
         b.matstat = matstat
     endif
+
     # Clean up the bundle
     delete b.ex
     delete b.nrx
@@ -145,110 +163,50 @@ function void bootTest (bundle *b)
     delete b.md
     delete b.rARcoef
     delete b.ey
-    delete b.uhat
+    delete b.muhat
     delete b.mrx
 end function
 
-function void varsimA (series Y,
-                       matrix ARbeta "Coeff. vector of Y",
-                       list X "rxlist ~ xlist of exogenous (-pmin to -p)",
-                       matrix Xbeta "coeff vector of Xs",
-                       series e "resampled",
-                       int p,
-                       series *ysim)
-    # Thankfully borrowed from Jack!
-    series m = lincomb(X, Xbeta)
-    scalar T = minr(rows({e})~rows({m}))
-    if p>1
-        matrix A = ARbeta' | (I(p-1) ~ 0)
-    else
-        matrix A = ARbeta'
-    endif
-    matrix y0 = mreverse({Y}[1:p])'
-    matrix U = {e + m} ~ zeros(T, p-1)
-    matrix S = varsimul(A, U, y0)
-    S = S[,1]
-    if p>1
-        S = {Y}[1:p-1] | S
-    endif
-    series ysim = S
-end function
-
-function void arstabA (matrix ARcoef,
-                       scalar *error)
-    if (sum(ARcoef)-1)>-0.00001
-        error=1
-    else
-        error=0
-    endif
-end function
-
-function void drawE (bundle *b,
-                     series *e)
-    series uhat = b.uhat
-    #uhat = uhat-mean(uhat)	# TODO: is re-centering needed here??
-    if b.btype==0
-        series e = normal(0,sd(uhat))	# parametric bootstrap
-    elif b.btype==1
-        series e = resample(uhat)		# draw from estimated residuals by resampling (may suffer from serial correl.)
-    elif b.btype==2						# wild uniform
-        series e = resample(uhat) * uniform(0,1)
-    elif b.btype==3						# Use Rademacher distrib. instead of uniform(0,1)
-        series Rad = uniform(0,1)
-        Rad = -1*(Rad<=0.5) + (Rad>0.5)
-        series e = resample(uhat) * Rad
-    elif b.btype==4						# block bootstrap
-        series e = SB(b.uhat)
-    endif
-end function
-
-function series SB (matrix x)
-    #matrix x "Data to be resampled"
-    scalar n = rows(x)
-    if n == 0
-        funcerr "data input error, check data"
-    endif
-    b = round(1.75*(n^(1/3)))	# mean block size to rule-of-thumb value
-    p = 1/b   					# probability of a new run
-    s = seq(1,n)'              	# sequence
-    u = 1 | (muniform(n-1,1) .< p) # run starts
-    r = cum(u)                     # id of each run
-    nr = r[n]                      # how many runs ?
-    sub = selifr(r ~ s, u)         # starting row for each run
-    sub[,2] -= mrandgen(i, 1, n, nr, 1) # adjust starting points
-    # --- create mini-trends ----------------
-    s -= replace(r, sub[,1], sub[,2])
-    # roll over if necessary
-    s = ((s-1)%n) + 1
-    series xx = x[s,]
-    return xx
-end function
 
 function bundle setMod (int whichTest[0:1:] "Test type" {"BDM", "PSS"},
                         int case[0:2:1] "Case" {"Unrestr. intercept", "restr. interc.", "restr. interc.+trend"},
                         const series Y "Endogenous",
-                        const list xlist "List of exogenous regressors",
-                        const list rxlist[null] "List of exogenous (no lags will be incl.)",
+                        const list xlist "Exogenous regressors",
+                        list rxlist[null] "Restricted exogenous; no lags added",
                         int pq[1::4] "Lag length in levels",
-                        bool condARDL[1] "Conditional model: 0=No, 1=Yes (default)",
-                        int btype[0:4:1] "Type of bootstrap" {"0=parametric", "1=non-parametric", "2=wild uniform", "3=wild Rademacher", "4=block-boots."},
+                        bool condARDL[1] "Estimate conditional model (yes=1) or not (no=0)",
+                        int btype[0:4:1] "Bootstrap type" {"0=parametric", "1=non-parametric", "2=wild uniform", "3=wild Rademacher", "4=block-boots."},
                         int bootrep[99::999],
                         scalar failstop[0.01:0.9:0.2] "Fraction of failed bootstrap iterations before full stop",
-                        bool verb[1] "Print details 0:No, 1:Yes")
+                        bool verb[1] "Print details")
+    /* Prepare everything for estimation. */
+
+    errorif(case == 2 && !inlist(rxlist, "time"), "Case 2 requires a trend series names 'time' to be added to list 'rxlist'.")
+
     bundle b
-    if case==2 && strstr(varname(rxlist), "time")==""
-        printf "\n*** You've chosen to run case 2 but no time trend is provided in rxlist. ***\n"
-        funcerr "*** Please re-specify your model. ***"
-    endif
+
+    scalar b.error = FALSE
     scalar b.addDET = 0
+
+    if !exists(rxlist)
+        list rxlist = null
+    endif
+
     if inlist(rxlist, "const")
         scalar b.addDET = 1
         rxlist -= const
     endif
+
     if inlist(rxlist, "time")
         scalar b.addDET = 2
         rxlist -= rxlist.time
     endif
+
+    scalar nobs = $nobs
+    list L = Y xlist rxlist
+    smpl L --no-missing
+    errorif($nobs < nobs, "Some of your series has missing values. Fix that. Abort.")
+
     matrix b.my = {Y}
     matrix b.mx = xlist
     matrix b.mrx = rxlist
@@ -256,93 +214,100 @@ function bundle setMod (int whichTest[0:1:] "Test type" {"BDM", "PSS"},
     b.nrx = nelem(rxlist)
     b.pq = pq
     b.condARDL = condARDL
-    if b.condARDL
-        b.pqmin = 0
-    else
-        b.pqmin = -1
-    endif
+    b.pqmin = (b.condARDL == TRUE) ? 0 : -1
     b.whichTest = whichTest
     b.case = case
     b.btype = btype
     b.bootrep = bootrep
     b.failstop = failstop
     string b.optsil = (verb==1) ? "" : "--quiet"
+
     return b
 end function
 
+
 function void runCoint (bundle *b)
+    /* Run actual cointegration test.
+    Return: FALSE if not error occurs, otherwise TRUE. */
+
+    errorif(b.error == TRUE, "Check setMod() again as some error occurred")
+
     series Y = b.my
     list xlist = b.mx
     list rxlist = b.mrx
     lags Y xlist
-    quiet = b.optsil
+    string quiet = b.optsil
+    list lDET = null
+    matrix quantile_values = {0.99, 0.95, 0.9}
+    strings row_labels = defarray("99pct.", "95pct.", "90pct.")
+    matrix b.crit = mshape(NA, nelem(quantile_values), 1)
+    matrix b.pvboot = mshape(NA, nelem(quantile_values), 1)
+    matrix b.test = mshape(NA, nelem(quantile_values), 1)
+
     # TODO: In principle we could provide an user-defined matrix before calling runARDL()
     # This could be helpful if want to provide a gappy coefficient matrix with some
-    # zeros or fixed parameters (for whetever reasons).
-    list lDET = null
-    if b.addDET==1
+    # zeros or fixed parameters (for whatever reasons).
+
+    if b.addDET == 1
         list lDET += const
-    elif b.addDET==2
+    elif b.addDET == 2
         list lDET += const time
     endif
+
     matrix b.md = lDET
-    ols Y lDET Y(-1 to -b.pq) xlist(b.pqmin to -b.pq) rxlist --quiet #@quiet
-    # Evaluate stability first
+    ols Y lDET Y(-1 to -b.pq) xlist(b.pqmin to -b.pq) rxlist --quiet
+
     scalar b.ay = b.addDET + 1
-    scalar b.ey = b.ay+b.pq-1
-    scalar err = 0
-    arstabA($coeff[b.ay:b.ey],&err)
-    scalar cancel = 0
-    if err
-        printf "*** NOTE: Your model is unstable. ***\n"
-        printf "*** Please re-specify and try again. ***\n"
-        cancel=1
-    endif
-    if cancel==0
-        b.uhat = {$uhat}			# those are used for resampling
-        scalar b.nx = nelem(xlist)
-        scalar b.nall = nelem($coeff)
-        #------------------------------------------
-        # Test the null of no long-run relationship
-        #------------------------------------------
-        prepRq(&b)
-        matrix Rmat = b.Rmat
-        matrix qvec = b.qvec
-        restrict --full --silent#@quiet		 # H0: SUM(a_j)-1=0 --> in ECM: rho=0
-            R = Rmat
-            q = qvec
-        end restrict
-        b.teststat = $test				# F-Test stats.
-        # Information of the null model for bootstrap
-        matrix rARcoef = $coeff[b.ay:b.ey]		# AR coefficients
-        b.rARcoef = rARcoef
-        scalar b.ax = b.ey + 1
-        if b.addDET > 0
-            b.Zcoef = $coeff[1:(b.ay-1)] | $coeff[b.ax:]	# Deterministics + DL coeff needed for ysim()
-        else
-            b.Zcoef = $coeff[b.ax:]
-        endif        
-        scalar b.ex = b.ax + b.nx*(b.condARDL + b.pq) - 1
-        # Run bootstrap Test()
-        bootTest(&b)
-        # Bootstrap p-value
-        if b.cancel==0
-            matstat = b.matstat
-            b.crit =  quantile(b.matstat,{0.99, 0.95, 0.9})
-            rownames(b.crit, "99pct. 95pct. 90pct.")	# TODO: rnameset()
-            b.pvboot = sum(abs(b.matstat).>= abs(b.teststat))/b.bootrep	# Compute scalar bootstrap p-value
-            # Print results
-            if b.optsil == ""
-                printTest(&b)
-            endif
-        else
-            matrix b.crit = NA
-            matrix b.pvboot = NA
-            matrix b.test = NA
-        endif
-    else
+    scalar b.ey = b.ay + b.pq - 1
+    scalar isstable = is_stable_model($coeff[b.ay:b.ey])
+
+    if !isstable
+        print "Error: Model is dynamically unstable. Abort."
+        flush
+        b.error = TRUE
         matrix b.crit = NA
         matrix b.pvboot = NA
         matrix b.test = NA
+    endif
+
+    b.muhat = {$uhat}			# those are used for resampling
+    scalar b.nx = nelem(xlist)
+    scalar b.nall = nelem($coeff)
+
+    # Test the null of no long-run relationship
+    prepRq(&b)
+    matrix Rmat = b.Rmat
+    matrix qvec = b.qvec
+    restrict --full --silent#@quiet		 # H0: SUM(a_j)-1=0 --> in ECM: rho=0
+        R = Rmat
+        q = qvec
+    end restrict
+
+    b.teststat = $test				# F-Test stats.
+
+    # Information of the null model for bootstrap
+    b.rARcoef = $coeff[b.ay:b.ey]
+    scalar b.ax = b.ey + 1
+    if b.addDET > 0
+        # Deterministics + DL coeff needed for ysim()
+        b.Zcoef = $coeff[1:(b.ay-1)] | $coeff[b.ax:]
+    else
+        b.Zcoef = $coeff[b.ax:]
+    endif
+
+    scalar b.ex = b.ax + b.nx * (b.condARDL + b.pq) - 1
+
+    bootTest(&b)
+
+    if !b.error
+        matstat = b.matstat
+        b.crit =  quantile(b.matstat, quantile_values)
+        rnameset(b.crit, row_labels)
+
+        # Compute scalar bootstrap p-value
+        b.pvboot = sum( abs(b.matstat) .>= abs(b.teststat) ) / b.bootrep
+        if !nelem(b.optsil)
+            printTest(&b)
+        endif
     endif
 end function

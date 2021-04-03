@@ -1,68 +1,76 @@
 set verbose off
-clear 
-include cointARDL.gfn --force
+clear
+#include cointARDL.gfn # FIXME
 
-#-----------
-# Example 1
-#-----------
-open denmark.gdt -q
+set workdir "/home/at/git/cointARDL"
+include cointARDL.inp --force
 
-# Run the bootstrap version based on the ARDL
-list xlist = LRY IBO #IDE
-list rxlist = const
-scalar pq = 2
-scalar condARDL = 1			# 0=unconditional, 1=conditional ARDL
-scalar case = 1				# 0=unrestr. const., 1=restrc. const., 2=restr. const + restr. trend
-scalar btype = 4			# 0=parametric, 1=non-param, 2=wild, 3=wild+Rademacher distrib., 4=block-boot
-scalar bootrep = 999			# no. of iterations
-scalar failstop = 0.1		# max. fraction of unstable models
-scalar which = 1			# 0=BDM, 1=PSS test
-scalar verbose = 1			# 0=no details, 1=print details
-# Setup the ARDL model: y(t) = b0 + b1*y(t-1) + b2*x(t) + b3*x(t-1) + u(t)
-bundle b = setMod(which, case, LRM, xlist, rxlist, \
-  pq, condARDL, btype, bootrep, failstop, verbose)
-# Run bootstrap cointegration test
-runCoint(&b)
-
-# Grab relevant information from bundle b
-scalar cv5 = b.crit [2]
-# 5 pct . bootstrap critical value
-matrix bstats = b.matstat
-# vector of bootstrap test statistics
-matrix mplot = bstats ~( ones( rows( bstats ) ,1)* cv5 )~ seq(1 , rows( bstats ) ,) '
-colnames(mplot ," Test - stats critval5 seq ")
-# attache column names
-plot mplot
-    options with-lines fit=none
-end plot --output=display
+include "/home/at/git/ADMPB/src/ADMBP.inp" --force
 
 
-/* Activate if needed
-   #---------------------------------
-   # Example 2 -- Simulation example
-   #---------------------------------
-   clear
+# Select example
+RUN_EXAMPLE = 1
+
+if RUN_EXAMPLE == 1
+   open denmark.gdt -q
+
+   # Run the bootstrap version based on the ARDL
+   list xlist = LRY IBO
+   list rxlist = const  # time
+   scalar pq = 2
+   scalar condARDL = TRUE	# FALSE=unconditional, TRUE=conditional ARDL
+   # 0=unrestr. const., 1=restrc. const., 2=restr. const + restr. trend
+   scalar case = 1
+   # 0=parametric, 1=non-param, 2=wild, 3=wild+Rademacher distrib., 4=block-boot
+   scalar btype = 4
+   scalar bootrep = 999
+   scalar failstop = 0.2
+   scalar which = 1			# 0=BDM, 1=PSS test
+   scalar verbose = TRUE
+
+   bundle b = setMod(which, case, LRM, xlist, rxlist, pq, condARDL,\
+                     btype, bootrep, failstop, verbose)
+   printf "\nError status = %d\n", b.error
+
+   runCoint(&b)            # Run bootstrap cointegration test
+   printf "\nError status = %d\n", b.error
+
+   scalar cv5 = b.crit[2]     # Grab relevant information from bundle b
+   matrix bstats = b.matstat  # 5 pct . bootstrap critical value
+
+   # Plot the vector of bootstrap test statistics
+   #matrix mplot = bstats ~ \
+   #   ( ones( rows(bstats) ,1) * cv5) ~\
+   #   seq(1, rows(bstats))'
+   #cnameset(mplot, " Test - stats critval5 seq ") # attache column names
+   #plot mplot
+   #    options with-lines fit=none
+   #end plot --output=display
+
+elif RUN_EXAMPLE == 2   # Example 2 -- Simulation example
+
    nulldata 200 --preserve
    setobs 1 1 --special-time-series
    scalar T = max(index)
    set seed 1234
    scalar m = 2            # Dimension of cov matrix
    matrix covm = I(m)      # Simple case: identity matrix
-   covm[2,1]=0				# determine contemporanous correlation
-   covm[1,2]=covm[2,1]
+   covm[2,1] = 0				# determine contemporanous correlation
+   covm[1,2] = covm[2,1]
    matrix errmn = mnormal(T,cols(covm)) * cholesky(covm)' # drawnorm(covm,TT)
-   #eval mcorr(errmn)
-                    
+
    series e1 = errmn[,1]
    series e2 = errmn[,2]
-   scalar delta = 0#.01					# drift param. for x-process
-   series x = cum(delta+e1)				# DGP for x, simple RW(+drift)
-   scalar a = 0			# intercept
+   scalar delta = 0  #.01	 				# drift param. for x-process
+   series x = cum(delta + e1)				# DGP for x, simple RW(+drift)
+   scalar a = 0			# intercept value
    scalar phi = 0.9		# speed of adjustment param. rho=phi-1
    scalar c0 = 0.5			# contemporanous effect of x
    scalar c1 = -0.45		# 1st lag of x
+   # DGP: ARDL in levels
    series y = 0			# init. value
-   series y = a + phi*y(-1) + c0*x + c1*x(-1) + e2	# DGP: ARDL in levels
+   series y = a + phi * y(-1) + c0 * x + c1 * x(-1) + e2
+
    printf "\n************************************\n"
    printf "Error-correction param. = %.3f\n", (phi-1)
    printf "LR-beta multiplier = %.3f\n", (c0+c1)/(phi-1)
@@ -71,24 +79,30 @@ end plot --output=display
    smpl index >= T/2 --restrict		# allow for burn-in phase
    store "@dotdir/dtmp.gdt"
    open "@dotdir/dtmp.gdt" -q
-   gnuplot x y --with-lines --time-series --output=display
+   gnuplot x y --with-lines --time-series --output=display \
+      { set title 'Simulated time-series'; }
+
    # Run the bootstrap version based on the ARDL
    list xlist = x
    list rxlist = const time
    scalar pq = 1			# lag length in levels
-   scalar condARDL = 1		# conditional ARDL: 0=NO, 1=YES
+   scalar condARDL = TRUE
    scalar case = 2			# 0=unrestr. intercept, 1=rest. intercept, 2=restr. const+trend
-   scalar btype = 1		# 0=parametric, 1=non-param, 2=wild, 3=wild+Rademacher distrib.
+   scalar btype = 1
    scalar bootrep = 1999
-   scalar failstop = 0.1	# max. percentage of failed stability
-   scalar which = 0		# 0=BDM, 1=PSS test
+   scalar failstop = 0.15	# max. percentage of failed stability
+   scalar which = 0		   # 0=BDM, 1=PSS test
+   scalar verbose = TRUE
+
    # Setup the model
    bundle B = setMod(which, case, y, xlist, rxlist, \
-   pq, condARDL, btype, bootrep, failstop, 1)
+   pq, condARDL, btype, bootrep, failstop, verbose)
+
    # Run bootstrap cointegration test
    runCoint(&B)
-   
+
    # Johansen test for comparison
    list endo = y x
    coint2 pq y x #--rc
-*/
+
+endif

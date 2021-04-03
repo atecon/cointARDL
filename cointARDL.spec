@@ -9,3 +9,5 @@ data-requirement = needs-time-series-data
 public = setMod runCoint
 help = cointARDL.pdf
 sample-script = cointARDL_sample.inp
+depends = ADMBP
+provider = ADMBP

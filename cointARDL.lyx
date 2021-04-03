@@ -1,5 +1,5 @@
-#LyX 2.2 created this file. For more info see http://www.lyx.org/
-\lyxformat 508
+#LyX 2.3 created this file. For more info see http://www.lyx.org/
+\lyxformat 544
 \begin_document
 \begin_header
 \save_transient_properties true
@@ -21,6 +21,8 @@
 \font_osf false
 \font_sf_scale 100 100
 \font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures true
 \graphics default
 \default_output_format default
 \output_sync 0
@@ -50,6 +52,7 @@
 \suppress_date false
 \justification true
 \use_refstyle 1
+\use_minted 0
 \index Index
 \shortcut idx
 \color #008000
@@ -62,7 +65,10 @@
 \tocdepth 3
 \paragraph_separation indent
 \paragraph_indentation default
-\quotes_language english
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style english
+\dynamic_quotes 0
 \papercolumns 1
 \papersides 1
 \paperpagestyle default
@@ -85,7 +91,7 @@ Artur Tarassow
 \end_layout
 
 \begin_layout Date
-Version 0.7
+Version 0.8
 \end_layout
 
 \begin_layout Standard
@@ -113,6 +119,49 @@ status open
 Changelog
 \end_layout
 
+\begin_layout Itemize
+Version 0.8 (March, 2021)
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+Return error code when calling both 
+\family typewriter
+setMod()
+\family default
+ and/ or 
+\family typewriter
+cointARDL()
+\family default
+ functions, respectively.
+\end_layout
+
+\begin_layout Itemize
+Fix bug with recent enforcement of the 
+\family typewriter
+const
+\family default
+ operator.
+\end_layout
+
+\begin_layout Itemize
+Check for missing values.
+\end_layout
+
+\begin_layout Itemize
+Internal clean up and minor bug-fixes; make use of some functions from the
+ 
+\begin_inset Quotes eld
+\end_inset
+
+ADMBP
+\begin_inset Quotes erd
+\end_inset
+
+ package.
+\end_layout
+
+\end_deeper
 \begin_layout Itemize
 Version 0.7 (December, 2018)
 \end_layout
@@ -2051,6 +2100,7 @@ For further details, see e.g.
 LatexCommand href
 name "russell-davidson.arts.mcgill.ca/e761/rd-jgm-bootstrap.pdf "
 target "russell-davidson.arts.mcgill.ca/e761/rd-jgm-bootstrap.pdf "
+literal "false"
 
 \end_inset
 
@@ -2282,7 +2332,7 @@ status open
 \begin_layout Plain Layout
 \align center
 \begin_inset Tabular
-<lyxtabular version="3" rows="18" columns="2">
+<lyxtabular version="3" rows="19" columns="2">
 <features tabularvalignment="middle">
 <column alignment="center" valignment="top">
 <column alignment="left" valignment="top">
@@ -2679,6 +2729,28 @@ integer taking 1 if the model includes an intercept or 2
 
 \begin_layout Plain Layout
 if the model includes an intercept + trend
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+error
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Error code: 0 in case of no error, otherwise 1
 \end_layout
 
 \end_inset
