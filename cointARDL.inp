@@ -1,6 +1,6 @@
 function void prepRq (bundle *b)
     # BDM test
-    if b.whichTest==0
+    if b.whichTest == 0
         matrix Rmat = zeros((1+b.case),b.nall)
         if b.case == 0
             matrix qvec = {1}
@@ -15,26 +15,26 @@ function void prepRq (bundle *b)
         Rmat[(1+b.case),b.ay:b.ey] = 1		# restrict AR coefficients
         # PSS test
     else
-        if b.case==0
-            matrix Rmat = zeros(1+b.nx,b.nall)	# unrestr. const.
+        if b.case == 0
+            matrix Rmat = zeros(1+b.nx, b.nall)	# unrestr. const.
             matrix qvec = {1} | zeros(b.nx,1)
-        elif b.case==1
-            matrix Rmat = zeros(2+b.nx,b.nall)	# restr. const
+        elif b.case == 1
+            matrix Rmat = zeros(2+b.nx, b.nall)	# restr. const
             Rmat[1,1] = 1
             matrix qvec = zeros(1,1) | {1} | zeros(b.nx,1)
-        elif b.case==2
-            matrix Rmat = zeros(3+b.nx,b.nall)	# restr. const + time
+        elif b.case == 2
+            matrix Rmat = zeros(3+b.nx, b.nall)	# restr. const + time
             Rmat[1,1] = 1
             Rmat[2,2] = 1
-            matrix qvec = zeros(2,1) | {1} | zeros(b.nx,1)
+            matrix qvec = zeros(2, 1) | {1} | zeros(b.nx, 1)
         endif
-        Rmat[(1+b.case), b.ay:b.ey]=1			# for rho
-        scalar ax = b.ey+1
-        scalar ex = ax+(b.condARDL + b.pq)-1
+        Rmat[(1 + b.case), b.ay:b.ey] = 1			# for rho
+        scalar ax = b.ey + 1
+        scalar ex = ax + (b.condARDL + b.pq) - 1
         loop i=(2+b.case)..(1+b.case+b.nx) -q
             Rmat[i,ax:ex] = 1		 # Sum coefficients up
-            ax = ex+1
-            ex = ax+(b.condARDL + b.pq)-1
+            ax = ex + 1
+            ex = ax + (b.condARDL + b.pq) - 1
         endloop
     endif
     b.qvec = qvec
@@ -53,24 +53,24 @@ function void printTest (bundle *b)
     printf "*****************************************************\n"
 
     printf "Restriction case:\n"
-    if b.case==0
+    if b.case == 0
         printf "Unrestricted constant\n"
-    elif b.case==1
+    elif b.case == 1
         printf "Restricted constant\n"
-    elif b.case==2
+    elif b.case == 2
         printf "Restricted constant and restricted trend\n"
     endif
 
     printf "Bootstrap type: "
-    if b.btype==0
+    if b.btype == 0
         string btype = "parametric"
-    elif b.btype==1
+    elif b.btype == 1
         string btype = "non-parametric"
-    elif b.btype==2
+    elif b.btype == 2
         string btype = "wild (uniform)"
-    elif b.btype==3
+    elif b.btype == 3
         string btype = "wild (Rademacher)"
-    elif b.btype==4
+    elif b.btype == 4
         string btype = "block-bootstrap"
     endif
 
@@ -90,15 +90,15 @@ function void bootTest (bundle *b)
 
     matrix Rmat = b.Rmat
     matrix qvec = b.qvec
-    series Y = b.my
+    series endogenous = b.my
     list xlist = b.mx
     list rxlist = b.mrx
     list lDET = b.md
-    string quiet = b.optsil
-    lags Y xlist
+    string quiet_str = b.optsil
+    lags endogenous xlist
     list Z = lDET xlist(b.pqmin to -b.pq) rxlist
     matrix Xbeta = b.Zcoef
-    matrix matstat = zeros(b.bootrep, 1)
+    matrix matstat = mshape(NA, b.bootrep, 1)
     scalar nloop=1
     scalar failed = 0
     scalar failstop = 0.35
@@ -108,38 +108,43 @@ function void bootTest (bundle *b)
 
     loop while nloop <= b.bootrep
         series e = 0
-        drawE(&b, &e)
+        drawE(b, &e)
 
         # Simulate the null model (no long-run relationship)
         series y_b = NA
-        varsimA(Y, b.rARcoef, Z, Xbeta, e, b.pq, &y_b)
+        varsimA(endogenous, b.rARcoef, Z, Xbeta, e, b.pq, &y_b)
         lags y_b 1
 
         # Estimate the alt model based on the the null model DGP
         catch ols y_b lDET y_b(-1 to -b.pq) xlist(b.pqmin to -b.pq) \
             rxlist --quiet
+        scalar err = $error
 
-        if nelem($xlist) != cols(Rmat) || !is_stable_model($coeff[b.ay:b.ey])
+        if err || nelem($xlist) != cols(Rmat) || \
+            !is_stable_model($coeff[b.ay:b.ey])
             b.failed++
         endif
 
-        if b.failed / b.bootrep >= b.failstop
+        if (b.failed / b.bootrep >= b.failstop)
             printf "\nError: Simulated too many unstable models. Abort.\n"
             flush
             b.error = TRUE
             break
-        else
+        endif
+
+        if !err
             # Run the restriction of the estimated alt model based on null model dgp
             restrict --silent	 # H0: SUM(a_j)-1=0 --> in ECM: rho=0
                 R = Rmat
                 q = qvec
             end restrict
+
             matstat[nloop] = $test
             nloop++
         endif
     endloop
 
-    if quiet != "--quiet"
+    if quiet_str != "--quiet"
         printf "\nInfo: %.2f pct. of the %d bootstrap iterations failed\n\
             due to instability.\n", (100 * b.failed / b.bootrep), b.bootrep
         flush
@@ -170,7 +175,7 @@ end function
 
 function bundle setMod (int whichTest[0:1:] "Test type" {"BDM", "PSS"},
                         int case[0:2:1] "Case" {"Unrestr. intercept", "restr. interc.", "restr. interc.+trend"},
-                        const series Y "Endogenous",
+                        const series endogenous "Endogenous",
                         const list xlist "Exogenous regressors",
                         list rxlist[null] "Restricted exogenous; no lags added",
                         int pq[1::4] "Lag length in levels",
@@ -203,11 +208,11 @@ function bundle setMod (int whichTest[0:1:] "Test type" {"BDM", "PSS"},
     endif
 
     scalar nobs = $nobs
-    list L = Y xlist rxlist
+    list L = endogenous xlist rxlist
     smpl L --no-missing
     errorif($nobs < nobs, "Some of your series has missing values. Fix that. Abort.")
 
-    matrix b.my = {Y}
+    matrix b.my = {endogenous}
     matrix b.mx = xlist
     matrix b.mrx = rxlist
     b.nx = nelem(xlist)
@@ -232,10 +237,10 @@ function void runCoint (bundle *b)
 
     errorif(b.error == TRUE, "Check setMod() again as some error occurred")
 
-    series Y = b.my
+    series endogenous = b.my
     list xlist = b.mx
     list rxlist = b.mrx
-    lags Y xlist
+    lags endogenous xlist
     string quiet = b.optsil
     list lDET = null
     matrix quantile_values = {0.99, 0.95, 0.9}
@@ -247,7 +252,6 @@ function void runCoint (bundle *b)
     # TODO: In principle we could provide an user-defined matrix before calling runARDL()
     # This could be helpful if want to provide a gappy coefficient matrix with some
     # zeros or fixed parameters (for whatever reasons).
-
     if b.addDET == 1
         list lDET += const
     elif b.addDET == 2
@@ -255,7 +259,7 @@ function void runCoint (bundle *b)
     endif
 
     matrix b.md = lDET
-    ols Y lDET Y(-1 to -b.pq) xlist(b.pqmin to -b.pq) rxlist --quiet
+    ols endogenous lDET endogenous(-1 to -b.pq) xlist(b.pqmin to -b.pq) rxlist --quiet
 
     scalar b.ay = b.addDET + 1
     scalar b.ey = b.ay + b.pq - 1

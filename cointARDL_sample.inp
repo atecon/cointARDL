@@ -1,12 +1,7 @@
 set verbose off
 clear
-#include cointARDL.gfn # FIXME
 
-set workdir "/home/at/git/cointARDL"
-include cointARDL.inp --force
-
-include "/home/at/git/ADMPB/src/ADMBP.inp" --force
-
+include cointARDL.gfn
 
 # Select example
 RUN_EXAMPLE = 1
@@ -16,7 +11,7 @@ if RUN_EXAMPLE == 1
 
    # Run the bootstrap version based on the ARDL
    list xlist = LRY IBO
-   list rxlist = const  # time
+   list rxlist = const     # time
    scalar pq = 2
    scalar condARDL = TRUE	# FALSE=unconditional, TRUE=conditional ARDL
    # 0=unrestr. const., 1=restrc. const., 2=restr. const + restr. trend
@@ -25,27 +20,19 @@ if RUN_EXAMPLE == 1
    scalar btype = 4
    scalar bootrep = 999
    scalar failstop = 0.2
-   scalar which = 1			# 0=BDM, 1=PSS test
+   scalar which = 1			  # 0=BDM, 1=PSS test
    scalar verbose = TRUE
 
    bundle b = setMod(which, case, LRM, xlist, rxlist, pq, condARDL,\
                      btype, bootrep, failstop, verbose)
    printf "\nError status = %d\n", b.error
 
-   runCoint(&b)            # Run bootstrap cointegration test
+   runCoint(&b)               # Run bootstrap cointegration test
    printf "\nError status = %d\n", b.error
 
    scalar cv5 = b.crit[2]     # Grab relevant information from bundle b
    matrix bstats = b.matstat  # 5 pct . bootstrap critical value
 
-   # Plot the vector of bootstrap test statistics
-   #matrix mplot = bstats ~ \
-   #   ( ones( rows(bstats) ,1) * cv5) ~\
-   #   seq(1, rows(bstats))'
-   #cnameset(mplot, " Test - stats critval5 seq ") # attache column names
-   #plot mplot
-   #    options with-lines fit=none
-   #end plot --output=display
 
 elif RUN_EXAMPLE == 2   # Example 2 -- Simulation example
 
@@ -55,20 +42,20 @@ elif RUN_EXAMPLE == 2   # Example 2 -- Simulation example
    set seed 1234
    scalar m = 2            # Dimension of cov matrix
    matrix covm = I(m)      # Simple case: identity matrix
-   covm[2,1] = 0				# determine contemporanous correlation
+   covm[2,1] = 0				# determine contemporaneous correlation
    covm[1,2] = covm[2,1]
-   matrix errmn = mnormal(T,cols(covm)) * cholesky(covm)' # drawnorm(covm,TT)
+   matrix errmn = mnormal(T,cols(covm)) * cholesky(covm)'
 
    series e1 = errmn[,1]
    series e2 = errmn[,2]
    scalar delta = 0  #.01	 				# drift param. for x-process
    series x = cum(delta + e1)				# DGP for x, simple RW(+drift)
-   scalar a = 0			# intercept value
-   scalar phi = 0.9		# speed of adjustment param. rho=phi-1
-   scalar c0 = 0.5			# contemporanous effect of x
-   scalar c1 = -0.45		# 1st lag of x
+   scalar a = 0			               # intercept value
+   scalar phi = 0.9		          # speed of adjustment param. rho=phi-1
+   scalar c0 = 0.5			            # contemporaneous effect of x
+   scalar c1 = -0.45	               	# 1st lag of x
    # DGP: ARDL in levels
-   series y = 0			# init. value
+   series y = 0			               # initial value
    series y = a + phi * y(-1) + c0 * x + c1 * x(-1) + e2
 
    printf "\n************************************\n"
@@ -85,12 +72,13 @@ elif RUN_EXAMPLE == 2   # Example 2 -- Simulation example
    # Run the bootstrap version based on the ARDL
    list xlist = x
    list rxlist = const time
-   scalar pq = 1			# lag length in levels
+   scalar pq = 1			  # lag length in levels
    scalar condARDL = TRUE
-   scalar case = 2			# 0=unrestr. intercept, 1=rest. intercept, 2=restr. const+trend
+   # 0=unrestr. intercept, 1=rest. intercept, 2=restr. const+trend
+   scalar case = 2
    scalar btype = 1
    scalar bootrep = 1999
-   scalar failstop = 0.15	# max. percentage of failed stability
+   scalar failstop = 0.15
    scalar which = 0		   # 0=BDM, 1=PSS test
    scalar verbose = TRUE
 
