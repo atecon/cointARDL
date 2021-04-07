@@ -179,12 +179,15 @@ function bundle setMod (int whichTest[0:1:] "Test type" {"BDM", "PSS"},
                         const list xlist "Exogenous regressors",
                         list rxlist[null] "Restricted exogenous; no lags added",
                         int pq[1::4] "Lag length in levels",
-                        bool condARDL[1] "Estimate conditional model (yes=1) or not (no=0)",
+                        bool condARDL[1] "Estimate conditional model",
                         int btype[0:4:1] "Bootstrap type" {"0=parametric", "1=non-parametric", "2=wild uniform", "3=wild Rademacher", "4=block-boots."},
                         int bootrep[99::999],
                         scalar failstop[0.01:0.9:0.2] "Fraction of failed bootstrap iterations before full stop",
                         bool verb[1] "Print details")
     /* Prepare everything for estimation. */
+
+    pkg query ADMBP --quiet
+    errorif($result.version < 0.991, "At least version 0.991 of the 'ADMBP' package must be installed.")
 
     errorif(case == 2 && !inlist(rxlist, "time"), "Case 2 requires a trend series names 'time' to be added to list 'rxlist'.")
 

@@ -1,13 +1,13 @@
 author = Artur Tarassow
 email = atecon@posteo.de
 version = 0.8
-date = 2021-04-04
+date = 2021-04-07
 description = Bootstrap single-eq. cointegration tests
 tags = C12 C20
-min-version = 2020b
+min-version = 2020c
 data-requirement = needs-time-series-data
 public = setMod runCoint
 help = cointARDL.pdf
 sample-script = cointARDL_sample.inp
-depends = ADMBP
+depends = ADMBP SB
 provider = ADMBP
