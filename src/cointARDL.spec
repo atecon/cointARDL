@@ -1,7 +1,7 @@
 author = Artur Tarassow
 email = atecon@posteo.de
 version = 0.8
-date = 2021-04-07
+date = 2021-04-09
 description = Bootstrap single-eq. cointegration tests
 tags = C12 C20
 min-version = 2020c

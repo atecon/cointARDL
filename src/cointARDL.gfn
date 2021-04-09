@@ -3,7 +3,7 @@
 <gretl-function-package name="cointARDL" needs-time-series-data="true" minver="2020c" lives-in-subdir="true">
 <author email="atecon@posteo.de">Artur Tarassow</author>
 <version>0.8</version>
-<date>2021-04-07</date>
+<date>2021-04-09</date>
 <description>Bootstrap single-eq. cointegration tests</description>
 <tags>C12 C20</tags>
 <help>
@@ -42,7 +42,7 @@ ADMBP SB </depends>
   <param name="btype" type="int" min="0" max="4" default="1">
 <description>Bootstrap type</description>
 <labels count="5">
-"0=parametric" "1=non-parametric" "2=wild uniform" "3=wild Rademacher" "4=block-boots." </labels>
+"parametric" "non-parametric" "wild uniform" "wild Rademacher" "block-bootstrap" </labels>
   </param>
   <param name="bootrep" type="int" min="99" default="999"/>
   <param name="failstop" type="scalar" min="0.01" max="0.9" default="0.2">
@@ -54,29 +54,38 @@ ADMBP SB </depends>
  </params>
 <code>/* Prepare everything for estimation. */
 pkg query ADMBP --quiet
-errorif($result.version &lt; 0.991, &quot;At least version 0.991 of the 'ADMBP' package must be installed.&quot;)
-errorif(case == 2 &amp;&amp; !inlist(rxlist, &quot;time&quot;), &quot;Case 2 requires a trend series names 'time' to be added to list 'rxlist'.&quot;)
+min_version_ADMBP = 1.0
+errorif($result.version &lt; min_version_ADMBP, sprintf(&quot;At least version %g of the 'ADMBP' package must be installed.&quot;, min_version_ADMBP))
 bundle b
 scalar b.error = FALSE
 scalar b.addDET = 0
 if !exists(rxlist)
   list rxlist = null
 endif
+# Intercept and trend are ommitted from rxlist and handeled separately later
+# by runCoint().
 if inlist(rxlist, &quot;const&quot;)
-  scalar b.addDET = 1
+  scalar b.addDET = xmax(1, b.addDET)
   rxlist -= const
 endif
-if inlist(rxlist, &quot;time&quot;)
+if case == 2
   scalar b.addDET = 2
-  rxlist -= rxlist.time
+  if !inlist(rxlist, &quot;time&quot;)
+    print &quot;Info: Added linear trend to list of restricted series.&quot;
+  else
+    rxlist -= time
+  endif
 endif
 scalar nobs = $nobs
 list L = endogenous xlist rxlist
 smpl L --no-missing
-errorif($nobs &lt; nobs, &quot;Some of your series has missing values. Fix that. Abort.&quot;)
+errorif($nobs &lt; nobs, &quot;Some of your series has missing values. Abort.&quot;)
 matrix b.my = {endogenous}
 matrix b.mx = xlist
 matrix b.mrx = rxlist
+string b.name_endogenous = argname(endogenous)
+strings b.names_xlist = varnames(xlist)
+strings b.rnames_xlist = varnames(rxlist)
 b.nx = nelem(xlist)
 b.nrx = nelem(rxlist)
 b.pq = pq
@@ -115,13 +124,15 @@ matrix b.test = mshape(NA, nelem(quantile_values), 1)
 if b.addDET == 1
   list lDET += const
 elif b.addDET == 2
-  list lDET += const time
+  genr time
+  list lDET += const
+  lDET += time
 endif
 matrix b.md = lDET
 ols endogenous lDET endogenous(-1 to -b.pq) xlist(b.pqmin to -b.pq) rxlist --quiet
-scalar b.ay = b.addDET + 1
-scalar b.ey = b.ay + b.pq - 1
-scalar isstable = is_stable_model($coeff[b.ay:b.ey])
+scalar b.init_pos_arcoeff = b.addDET + 1
+scalar b.last_pos_arcoeff = b.init_pos_arcoeff + b.pq - 1
+scalar isstable = is_stable_model($coeff[b.init_pos_arcoeff:b.last_pos_arcoeff])
 if !isstable
   print &quot;Error: Model is dynamically unstable. Abort.&quot;
   flush
@@ -133,82 +144,116 @@ endif
 b.muhat = {$uhat}			# those are used for resampling
 scalar b.nx = nelem(xlist)
 scalar b.nall = nelem($coeff)
+strings b.names_exogenous = varnames($xlist)
 # Test the null of no long-run relationship
 prepRq(&amp;b)
 matrix Rmat = b.Rmat
 matrix qvec = b.qvec
-restrict --full --silent#@quiet		 # H0: SUM(a_j)-1=0 --&gt; in ECM: rho=0
+catch restrict --full --silent # H0: SUM(a_j)-1=0 --&gt; in ECM: rho=0
   R = Rmat
   q = qvec
 end restrict
-b.teststat = $test				# F-Test stats.
-# Information of the null model for bootstrap
-b.rARcoef = $coeff[b.ay:b.ey]
-scalar b.ax = b.ey + 1
-if b.addDET &gt; 0
-  # Deterministics + DL coeff needed for ysim()
-  b.Zcoef = $coeff[1:(b.ay-1)] | $coeff[b.ax:]
-else
-  b.Zcoef = $coeff[b.ax:]
+scalar err = $error
+if err
+  printf &quot;%s. Abort.\n&quot;, errmsg(err)
+  b.error = TRUE
 endif
-scalar b.ex = b.ax + b.nx * (b.condARDL + b.pq) - 1
-bootTest(&amp;b)
 if !b.error
-  matstat = b.matstat
-  b.crit =  quantile(b.matstat, quantile_values)
-  rnameset(b.crit, row_labels)
-  # Compute scalar bootstrap p-value
-  b.pvboot = sum( abs(b.matstat) .&gt;= abs(b.teststat) ) / b.bootrep
-  if !nelem(b.optsil)
-    printTest(&amp;b)
+  b.teststat = $test				# F-Test stats.
+  # Information of the null model for bootstrap
+  b.rARcoef = $coeff[b.init_pos_arcoeff:b.last_pos_arcoeff]
+  scalar b.ax = b.last_pos_arcoeff + 1
+  if b.addDET &gt; 0
+    # Deterministics + DL coeff needed for ysim()
+    b.Zcoef = $coeff[1:(b.init_pos_arcoeff-1)] | $coeff[b.ax:]
+  else
+    b.Zcoef = $coeff[b.ax:]
+  endif
+  scalar b.ex = b.ax + b.nx * (b.condARDL + b.pq) - 1
+  bootTest(&amp;b)
+  if !b.error
+    matstat = b.matstat
+    b.crit =  quantile(b.matstat, quantile_values)
+    rnameset(b.crit, row_labels)
+    # Compute scalar bootstrap p-value
+    b.pvboot = sum( abs(b.matstat) .&gt;= abs(b.teststat) ) / b.bootrep
+    if !nelem(b.optsil)
+      printTest(&amp;b)
+    endif
   endif
 endif
+</code>
+</gretl-function>
+<gretl-function name="Rq_BDM" type="bundle" private="1">
+ <params count="1">
+  <param name="b" type="bundle" const="true"/>
+ </params>
+<code>/* Set of restriction matrices for BDM based cointegration test. */
+bundle Set
+matrix Set.Rmat = zeros((1 + b.case), b.nall)
+pos_const = instrings(b.names_exogenous, &quot;const&quot;)
+pos_time = instrings(b.names_exogenous, &quot;time&quot;)
+if b.case == 0
+  matrix Set.qvec = {1}
+elif b.case == 1
+  Set.Rmat[pos_const, pos_const] = 1
+  matrix Set.qvec = zeros(1, 1) | {1}
+elif b.case == 2
+  Set.Rmat[pos_const, pos_const] = 1
+  Set.Rmat[pos_time, pos_time] = 1
+  matrix Set.qvec = zeros(2, 1) | {1}
+endif
+# restrict AR coefficients
+Set.Rmat[(1 + b.case), b.init_pos_arcoeff:b.last_pos_arcoeff] = 1
+return Set
+</code>
+</gretl-function>
+<gretl-function name="Rq_PSS" type="bundle" private="1">
+ <params count="1">
+  <param name="b" type="bundle" const="true"/>
+ </params>
+<code>/* Set of restriction matrices for PSS based cointegration test. */
+bundle Set
+matrix Set.Rmat = zeros((1 + b.case), b.nall)
+pos_const = instrings(b.names_exogenous, &quot;const&quot;)
+pos_time = instrings(b.names_exogenous, &quot;time&quot;)
+if b.case == 0
+  matrix Set.Rmat = zeros((1 + b.nx), b.nall) # unrestr. const.
+  matrix Set.qvec = {1} | zeros(b.nx, 1)
+elif b.case == 1
+  matrix Set.Rmat = zeros((2 + b.nx), b.nall) # restr. const
+  Set.Rmat[pos_const, pos_const] = 1
+  matrix Set.qvec = zeros(1, 1) | {1} | zeros(b.nx, 1)
+elif b.case == 2
+  matrix Set.Rmat = zeros((3 + b.nx), b.nall) # restr. const + time
+  Set.Rmat[pos_const, pos_const] = 1
+  Set.Rmat[pos_time, pos_time] = 1
+  matrix Set.qvec = zeros(2, 1) | {1} | zeros(b.nx, 1)
+endif
+# restrict AR coefficients
+Set.Rmat[(1 + b.case), b.init_pos_arcoeff:b.last_pos_arcoeff] = 1
+scalar ax = b.last_pos_arcoeff + 1
+scalar ex = ax + (b.condARDL + b.pq) - 1
+loop i=(2 + b.case)..(1 + b.case + b.nx) -q
+  Set.Rmat[i,ax:ex] = 1        # Sum coefficients up
+  ax = ex + 1
+  ex = ax + (b.condARDL + b.pq) - 1
+endloop
+return Set
 </code>
 </gretl-function>
 <gretl-function name="prepRq" type="void" private="1">
  <params count="1">
   <param name="b" type="bundleref"/>
  </params>
-<code># BDM test
+<code>/* Wrapper for compiling test-specific matrices for linear restrictions. */
 if b.whichTest == 0
-  matrix Rmat = zeros((1+b.case),b.nall)
-  if b.case == 0
-    matrix qvec = {1}
-  elif b.case == 1
-    Rmat[1,1] = 1			# restrict const
-    matrix qvec = zeros(1,1) | {1}
-  elif b.case == 2
-    Rmat[1,1] = 1			# restrict const, unrestri. trend
-    Rmat[2,2] = 1			# restrict trend
-    matrix qvec = zeros(2,1) | {1}
-  endif
-  Rmat[(1+b.case),b.ay:b.ey] = 1		# restrict AR coefficients
-  # PSS test
+  b = b + Rq_BDM(b)
+elif b.whichTest == 1
+  b = b + Rq_PSS(b)
 else
-  if b.case == 0
-    matrix Rmat = zeros(1+b.nx, b.nall)	# unrestr. const.
-    matrix qvec = {1} | zeros(b.nx,1)
-  elif b.case == 1
-    matrix Rmat = zeros(2+b.nx, b.nall)	# restr. const
-    Rmat[1,1] = 1
-    matrix qvec = zeros(1,1) | {1} | zeros(b.nx,1)
-  elif b.case == 2
-    matrix Rmat = zeros(3+b.nx, b.nall)	# restr. const + time
-    Rmat[1,1] = 1
-    Rmat[2,2] = 1
-    matrix qvec = zeros(2, 1) | {1} | zeros(b.nx, 1)
-  endif
-  Rmat[(1 + b.case), b.ay:b.ey] = 1			# for rho
-  scalar ax = b.ey + 1
-  scalar ex = ax + (b.condARDL + b.pq) - 1
-  loop i=(2+b.case)..(1+b.case+b.nx) -q
-    Rmat[i,ax:ex] = 1		 # Sum coefficients up
-    ax = ex + 1
-    ex = ax + (b.condARDL + b.pq) - 1
-  endloop
+  funcerr &quot;Unknown ID for cointegration test passed. Abort.&quot;
 endif
-b.qvec = qvec
-b.Rmat = Rmat
 </code>
 </gretl-function>
 <gretl-function name="printTest" type="void" private="1">
@@ -275,16 +320,14 @@ scalar b.error = FALSE
 scalar b.failed = 0
 scalar btype = b.btype
 loop while nloop &lt;= b.bootrep
-  series e = 0
-  drawE(b, &amp;e)
+  series e = drawE(b)
   # Simulate the null model (no long-run relationship)
-  series y_b = NA
-  varsimA(endogenous, b.rARcoef, Z, Xbeta, e, b.pq, &amp;y_b)
+  series y_b = varsimA(endogenous, b.rARcoef, Z, Xbeta, e, b.pq)
   lags y_b 1
   # Estimate the alt model based on the the null model DGP
   catch ols y_b lDET y_b(-1 to -b.pq) xlist(b.pqmin to -b.pq) rxlist --quiet
   scalar err = $error
-  if err || nelem($xlist) != cols(Rmat) || !is_stable_model($coeff[b.ay:b.ey])
+  if err || nelem($xlist) != cols(Rmat) || !is_stable_model($coeff[b.init_pos_arcoeff:b.last_pos_arcoeff])
     b.failed++
   endif
   if (b.failed / b.bootrep &gt;= b.failstop)
@@ -303,10 +346,6 @@ loop while nloop &lt;= b.bootrep
     nloop++
   endif
 endloop
-if quiet_str != &quot;--quiet&quot;
-  printf &quot;\nInfo: %.2f pct. of the %d bootstrap iterations failed\n             due to instability.\n&quot;, (100 * b.failed / b.bootrep), b.bootrep
-  flush
-endif
 if b.error == FALSE
   b.matstat = matstat
 endif
@@ -318,12 +357,12 @@ delete b.nx
 delete b.Rmat
 delete b.Zcoef
 delete b.qvec
-delete b.ay
+delete b.init_pos_arcoeff
 delete b.nall
 delete b.ax
 delete b.md
 delete b.rARcoef
-delete b.ey
+delete b.last_pos_arcoeff
 delete b.muhat
 delete b.mrx
 </code>
@@ -346,9 +385,9 @@ if RUN_EXAMPLE == 1
    scalar pq = 2
    scalar condARDL = FALSE	# FALSE=unconditional, TRUE=conditional ARDL
    # 0=unrestr. const., 1=restrc. const., 2=restr. const + restr. trend
-   scalar case = 1
+   scalar case = 2
    # 0=parametric, 1=non-param, 2=wild, 3=wild+Rademacher distrib., 4=block-boot
-   scalar btype = 4
+   scalar btype = 3
    scalar bootrep = 999
    scalar failstop = 0.2
    scalar which = 1			  # 0=BDM, 1=PSS test

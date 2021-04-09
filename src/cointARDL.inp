@@ -1,45 +1,85 @@
-function void prepRq (bundle *b)
-    # BDM test
-    if b.whichTest == 0
-        matrix Rmat = zeros((1+b.case),b.nall)
-        if b.case == 0
-            matrix qvec = {1}
-        elif b.case == 1
-            Rmat[1,1] = 1			# restrict const
-            matrix qvec = zeros(1,1) | {1}
-        elif b.case == 2
-            Rmat[1,1] = 1			# restrict const, unrestri. trend
-            Rmat[2,2] = 1			# restrict trend
-            matrix qvec = zeros(2,1) | {1}
-        endif
-        Rmat[(1+b.case),b.ay:b.ey] = 1		# restrict AR coefficients
-        # PSS test
-    else
-        if b.case == 0
-            matrix Rmat = zeros(1+b.nx, b.nall)	# unrestr. const.
-            matrix qvec = {1} | zeros(b.nx,1)
-        elif b.case == 1
-            matrix Rmat = zeros(2+b.nx, b.nall)	# restr. const
-            Rmat[1,1] = 1
-            matrix qvec = zeros(1,1) | {1} | zeros(b.nx,1)
-        elif b.case == 2
-            matrix Rmat = zeros(3+b.nx, b.nall)	# restr. const + time
-            Rmat[1,1] = 1
-            Rmat[2,2] = 1
-            matrix qvec = zeros(2, 1) | {1} | zeros(b.nx, 1)
-        endif
-        Rmat[(1 + b.case), b.ay:b.ey] = 1			# for rho
-        scalar ax = b.ey + 1
-        scalar ex = ax + (b.condARDL + b.pq) - 1
-        loop i=(2+b.case)..(1+b.case+b.nx) -q
-            Rmat[i,ax:ex] = 1		 # Sum coefficients up
-            ax = ex + 1
-            ex = ax + (b.condARDL + b.pq) - 1
-        endloop
+function bundle Rq_BDM (const bundle b)
+    /* Set of restriction matrices for BDM based cointegration test. */
+
+    bundle Set
+    matrix Set.Rmat = zeros((1 + b.case), b.nall)
+
+    pos_const = instrings(b.names_exogenous, "const")
+    pos_time = instrings(b.names_exogenous, "time")
+
+    if b.case == 0
+        matrix Set.qvec = {1}
+
+    elif b.case == 1
+        Set.Rmat[pos_const, pos_const] = 1
+        matrix Set.qvec = zeros(1, 1) | {1}
+
+    elif b.case == 2
+        Set.Rmat[pos_const, pos_const] = 1
+        Set.Rmat[pos_time, pos_time] = 1
+        matrix Set.qvec = zeros(2, 1) | {1}
     endif
-    b.qvec = qvec
-    b.Rmat = Rmat
+
+    # restrict AR coefficients
+    Set.Rmat[(1 + b.case), b.init_pos_arcoeff:b.last_pos_arcoeff] = 1
+
+    return Set
 end function
+
+
+function bundle Rq_PSS (const bundle b)
+    /* Set of restriction matrices for PSS based cointegration test. */
+
+    bundle Set
+    matrix Set.Rmat = zeros((1 + b.case), b.nall)
+
+    pos_const = instrings(b.names_exogenous, "const")
+    pos_time = instrings(b.names_exogenous, "time")
+
+    if b.case == 0
+        matrix Set.Rmat = zeros((1 + b.nx), b.nall) # unrestr. const.
+        matrix Set.qvec = {1} | zeros(b.nx, 1)
+
+    elif b.case == 1
+        matrix Set.Rmat = zeros((2 + b.nx), b.nall) # restr. const
+        Set.Rmat[pos_const, pos_const] = 1
+        matrix Set.qvec = zeros(1, 1) | {1} | zeros(b.nx, 1)
+
+    elif b.case == 2
+        matrix Set.Rmat = zeros((3 + b.nx), b.nall) # restr. const + time
+        Set.Rmat[pos_const, pos_const] = 1
+        Set.Rmat[pos_time, pos_time] = 1
+        matrix Set.qvec = zeros(2, 1) | {1} | zeros(b.nx, 1)
+    endif
+
+    # restrict AR coefficients
+    Set.Rmat[(1 + b.case), b.init_pos_arcoeff:b.last_pos_arcoeff] = 1
+
+    scalar ax = b.last_pos_arcoeff + 1
+    scalar ex = ax + (b.condARDL + b.pq) - 1
+
+    loop i=(2 + b.case)..(1 + b.case + b.nx) -q
+        Set.Rmat[i,ax:ex] = 1        # Sum coefficients up
+        ax = ex + 1
+        ex = ax + (b.condARDL + b.pq) - 1
+    endloop
+
+    return Set
+end function
+
+
+function void prepRq (bundle *b)
+    /* Wrapper for compiling test-specific matrices for linear restrictions. */
+
+    if b.whichTest == 0
+        b = b + Rq_BDM(b)
+    elif b.whichTest == 1
+        b = b + Rq_PSS(b)
+    else
+        funcerr "Unknown ID for cointegration test passed. Abort."
+    endif
+end function
+
 
 function void printTest (bundle *b)
     /* */
@@ -107,12 +147,10 @@ function void bootTest (bundle *b)
     scalar btype = b.btype
 
     loop while nloop <= b.bootrep
-        series e = 0
-        drawE(b, &e)
+        series e = drawE(b)
 
         # Simulate the null model (no long-run relationship)
-        series y_b = NA
-        varsimA(endogenous, b.rARcoef, Z, Xbeta, e, b.pq, &y_b)
+        series y_b = varsimA(endogenous, b.rARcoef, Z, Xbeta, e, b.pq)
         lags y_b 1
 
         # Estimate the alt model based on the the null model DGP
@@ -121,7 +159,7 @@ function void bootTest (bundle *b)
         scalar err = $error
 
         if err || nelem($xlist) != cols(Rmat) || \
-            !is_stable_model($coeff[b.ay:b.ey])
+            !is_stable_model($coeff[b.init_pos_arcoeff:b.last_pos_arcoeff])
             b.failed++
         endif
 
@@ -144,12 +182,6 @@ function void bootTest (bundle *b)
         endif
     endloop
 
-    if quiet_str != "--quiet"
-        printf "\nInfo: %.2f pct. of the %d bootstrap iterations failed\n\
-            due to instability.\n", (100 * b.failed / b.bootrep), b.bootrep
-        flush
-    endif
-
     if b.error == FALSE
         b.matstat = matstat
     endif
@@ -162,12 +194,12 @@ function void bootTest (bundle *b)
     delete b.Rmat
     delete b.Zcoef
     delete b.qvec
-    delete b.ay
+    delete b.init_pos_arcoeff
     delete b.nall
     delete b.ax
     delete b.md
     delete b.rARcoef
-    delete b.ey
+    delete b.last_pos_arcoeff
     delete b.muhat
     delete b.mrx
 end function
@@ -180,19 +212,19 @@ function bundle setMod (int whichTest[0:1:] "Test type" {"BDM", "PSS"},
                         list rxlist[null] "Restricted exogenous; no lags added",
                         int pq[1::4] "Lag length in levels",
                         bool condARDL[1] "Estimate conditional model",
-                        int btype[0:4:1] "Bootstrap type" {"0=parametric", "1=non-parametric", "2=wild uniform", "3=wild Rademacher", "4=block-boots."},
+                        int btype[0:4:1] "Bootstrap type" {"parametric", "non-parametric", "wild uniform", "wild Rademacher", "block-bootstrap"},
                         int bootrep[99::999],
                         scalar failstop[0.01:0.9:0.2] "Fraction of failed bootstrap iterations before full stop",
                         bool verb[1] "Print details")
     /* Prepare everything for estimation. */
 
     pkg query ADMBP --quiet
-    errorif($result.version < 0.991, "At least version 0.991 of the 'ADMBP' package must be installed.")
-
-    errorif(case == 2 && !inlist(rxlist, "time"), "Case 2 requires a trend series names 'time' to be added to list 'rxlist'.")
+    min_version_ADMBP = 1.0
+    errorif($result.version < min_version_ADMBP,\
+        sprintf("At least version %g of the 'ADMBP' package must be installed.",\
+            min_version_ADMBP))
 
     bundle b
-
     scalar b.error = FALSE
     scalar b.addDET = 0
 
@@ -200,24 +232,33 @@ function bundle setMod (int whichTest[0:1:] "Test type" {"BDM", "PSS"},
         list rxlist = null
     endif
 
+    # Intercept and trend are ommitted from rxlist and handeled separately later
+    # by runCoint().
     if inlist(rxlist, "const")
-        scalar b.addDET = 1
+        scalar b.addDET = xmax(1, b.addDET)
         rxlist -= const
     endif
 
-    if inlist(rxlist, "time")
+    if case == 2
         scalar b.addDET = 2
-        rxlist -= rxlist.time
+        if !inlist(rxlist, "time")
+            print "Info: Added linear trend to list of restricted series."
+        else
+            rxlist -= time
+        endif
     endif
 
     scalar nobs = $nobs
     list L = endogenous xlist rxlist
     smpl L --no-missing
-    errorif($nobs < nobs, "Some of your series has missing values. Fix that. Abort.")
+    errorif($nobs < nobs, "Some of your series has missing values. Abort.")
 
     matrix b.my = {endogenous}
     matrix b.mx = xlist
     matrix b.mrx = rxlist
+    string b.name_endogenous = argname(endogenous)
+    strings b.names_xlist = varnames(xlist)
+    strings b.rnames_xlist = varnames(rxlist)
     b.nx = nelem(xlist)
     b.nrx = nelem(rxlist)
     b.pq = pq
@@ -258,15 +299,18 @@ function void runCoint (bundle *b)
     if b.addDET == 1
         list lDET += const
     elif b.addDET == 2
-        list lDET += const time
+        genr time
+        list lDET += const
+        lDET += time
     endif
 
     matrix b.md = lDET
-    ols endogenous lDET endogenous(-1 to -b.pq) xlist(b.pqmin to -b.pq) rxlist --quiet
+    ols endogenous lDET endogenous(-1 to -b.pq) xlist(b.pqmin to -b.pq) \
+        rxlist --quiet
 
-    scalar b.ay = b.addDET + 1
-    scalar b.ey = b.ay + b.pq - 1
-    scalar isstable = is_stable_model($coeff[b.ay:b.ey])
+    scalar b.init_pos_arcoeff = b.addDET + 1
+    scalar b.last_pos_arcoeff = b.init_pos_arcoeff + b.pq - 1
+    scalar isstable = is_stable_model($coeff[b.init_pos_arcoeff:b.last_pos_arcoeff])
 
     if !isstable
         print "Error: Model is dynamically unstable. Abort."
@@ -280,41 +324,51 @@ function void runCoint (bundle *b)
     b.muhat = {$uhat}			# those are used for resampling
     scalar b.nx = nelem(xlist)
     scalar b.nall = nelem($coeff)
+    strings b.names_exogenous = varnames($xlist)
 
     # Test the null of no long-run relationship
     prepRq(&b)
     matrix Rmat = b.Rmat
     matrix qvec = b.qvec
-    restrict --full --silent#@quiet		 # H0: SUM(a_j)-1=0 --> in ECM: rho=0
+
+    catch restrict --full --silent # H0: SUM(a_j)-1=0 --> in ECM: rho=0
         R = Rmat
         q = qvec
     end restrict
 
-    b.teststat = $test				# F-Test stats.
-
-    # Information of the null model for bootstrap
-    b.rARcoef = $coeff[b.ay:b.ey]
-    scalar b.ax = b.ey + 1
-    if b.addDET > 0
-        # Deterministics + DL coeff needed for ysim()
-        b.Zcoef = $coeff[1:(b.ay-1)] | $coeff[b.ax:]
-    else
-        b.Zcoef = $coeff[b.ax:]
+    scalar err = $error
+    if err
+        printf "%s. Abort.\n", errmsg(err)
+        b.error = TRUE
     endif
 
-    scalar b.ex = b.ax + b.nx * (b.condARDL + b.pq) - 1
-
-    bootTest(&b)
-
     if !b.error
-        matstat = b.matstat
-        b.crit =  quantile(b.matstat, quantile_values)
-        rnameset(b.crit, row_labels)
+        b.teststat = $test				# F-Test stats.
 
-        # Compute scalar bootstrap p-value
-        b.pvboot = sum( abs(b.matstat) .>= abs(b.teststat) ) / b.bootrep
-        if !nelem(b.optsil)
-            printTest(&b)
+        # Information of the null model for bootstrap
+        b.rARcoef = $coeff[b.init_pos_arcoeff:b.last_pos_arcoeff]
+        scalar b.ax = b.last_pos_arcoeff + 1
+        if b.addDET > 0
+            # Deterministics + DL coeff needed for ysim()
+            b.Zcoef = $coeff[1:(b.init_pos_arcoeff-1)] | $coeff[b.ax:]
+        else
+            b.Zcoef = $coeff[b.ax:]
+        endif
+
+        scalar b.ex = b.ax + b.nx * (b.condARDL + b.pq) - 1
+
+        bootTest(&b)
+
+        if !b.error
+            matstat = b.matstat
+            b.crit =  quantile(b.matstat, quantile_values)
+            rnameset(b.crit, row_labels)
+
+            # Compute scalar bootstrap p-value
+            b.pvboot = sum( abs(b.matstat) .>= abs(b.teststat) ) / b.bootrep
+            if !nelem(b.optsil)
+                printTest(&b)
+            endif
         endif
     endif
 end function

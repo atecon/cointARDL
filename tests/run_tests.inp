@@ -1,0 +1,78 @@
+set verbose off
+clear
+set assert stop
+
+include ADMBP.gfn  # MAKE sure you access the right version
+include SB.gfn
+include cointARDL.gfn
+
+
+open denmark.gdt -q
+
+# Set parameters
+series TARGET = LRM
+scalar NBOOT = 199
+scalar FAILSTOP = 0.5
+scalar VERBOSE = FALSE
+list xlist = LRY IBO IDE
+list RXLIST_1 = const
+list RXLIST_2 = const time
+
+# parameter ranges
+matrix LAGS = seq(1, 4)'
+matrix CONDITIONAL_ARDL = {0, 1}'
+matrix BTYPES = seq(0, 4)'
+matrix CASES = seq(1, 2)'
+matrix WHICH_TEST = {0, 1}'
+
+
+
+loop which=1..rows(WHICH_TEST)
+   loop lag=1..rows(LAGS)
+      loop btype=1..rows(BTYPES)
+         loop case=1..rows(CASES)
+            loop conditional=1..rows(CONDITIONAL_ARDL)
+
+               loop rx=1..2
+
+                  if rx == 1
+                     list rxlist = RXLIST_1
+                  elif rx == 2
+                     list rxlist = RXLIST_2
+                  endif
+
+                  scalar pq_val = LAGS[lag]
+                  scalar conditional_val = CONDITIONAL_ARDL[conditional]
+                  scalar case_val = CASES[case]
+                  scalar btype_val = BTYPES[btype]
+                  scalar which_val = WHICH_TEST[which]
+
+                  print "Run cointARDL() with the following settings"
+                  print "=========================================="
+                  rxlist
+                  print pq_val conditional_val case_val btype_val which_val
+
+                  bundle b = null
+
+                  bundle b = setMod(which_val, case_val, TARGET, xlist, rxlist,\
+                                    pq_val, conditional_val, btype_val, NBOOT,\
+                                    FAILSTOP, VERBOSE)
+
+                  assert(b.error == FALSE)
+
+                  runCoint(&b)               # Run bootstrap cointegration test
+                  assert(b.error == FALSE)
+                  assert(ok(b.crit[2]) == TRUE)
+
+                  print "Finished test run"
+                  flush
+
+               endloop
+            endloop
+         endloop
+      endloop
+   endloop
+endloop
+
+print "Tests succesfully passed"
+quit
