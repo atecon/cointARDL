@@ -92,13 +92,13 @@ function void printTest (bundle *b)
     endif
     printf "*****************************************************\n"
 
-    printf "Restriction case:\n"
+    printf "Restriction case: "
     if b.case == 0
-        printf "Unrestricted constant\n"
+        printf "unrestricted constant\n"
     elif b.case == 1
-        printf "Restricted constant\n"
+        printf "restricted constant\n"
     elif b.case == 2
-        printf "Restricted constant and restricted trend\n"
+        printf "restricted constant and restricted trend\n"
     endif
 
     printf "Bootstrap type: "
@@ -115,7 +115,7 @@ function void printTest (bundle *b)
     endif
 
     printf "Bootstrap replications: %d\n", b.bootrep
-    printf "\nInitial test statistics = %.3f\n", b.teststat
+    printf "\nTest statistics = %.3f\n", b.teststat
     printf "\nCritical values:\n       1pct.  \t 5pct.  \t 10pct.\n"
     printf "%12.3f\n", b.crit'
     printf "Bootstrap p-value = %.3f\n", b.pvboot

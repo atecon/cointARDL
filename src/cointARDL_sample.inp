@@ -11,13 +11,13 @@ if RUN_EXAMPLE == 1
 
    # Run the bootstrap version based on the ARDL
    list xlist = LRY IBO IDE
-   list rxlist = const time
+   list rxlist = const #time
    scalar pq = 2
    scalar condARDL = FALSE	# FALSE=unconditional, TRUE=conditional ARDL
    # 0=unrestr. const., 1=restrc. const., 2=restr. const + restr. trend
-   scalar case = 2
+   scalar case = 1
    # 0=parametric, 1=non-param, 2=wild, 3=wild+Rademacher distrib., 4=block-boot
-   scalar btype = 3
+   scalar btype = 4
    scalar bootrep = 999
    scalar failstop = 0.2
    scalar which = 1			  # 0=BDM, 1=PSS test

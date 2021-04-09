@@ -120,7 +120,7 @@ Changelog
 \end_layout
 
 \begin_layout Itemize
-Version 0.8 (March, 2021)
+Version 0.8 (April, 2021)
 \end_layout
 
 \begin_deeper
@@ -142,6 +142,11 @@ Fix bug with recent enforcement of the
 const
 \family default
  operator.
+\end_layout
+
+\begin_layout Itemize
+Fix bug with setting up set of linear restrictions for case=2 and an added
+ linear trend
 \end_layout
 
 \begin_layout Itemize

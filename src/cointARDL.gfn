@@ -268,13 +268,13 @@ else
   printf &quot;*** PSS bootstrap F-Test based on ARDL(%d,%d) model ***\n&quot;, b.pq, b.pq
 endif
 printf &quot;*****************************************************\n&quot;
-printf &quot;Restriction case:\n&quot;
+printf &quot;Restriction case: &quot;
 if b.case == 0
-  printf &quot;Unrestricted constant\n&quot;
+  printf &quot;unrestricted constant\n&quot;
 elif b.case == 1
-  printf &quot;Restricted constant\n&quot;
+  printf &quot;restricted constant\n&quot;
 elif b.case == 2
-  printf &quot;Restricted constant and restricted trend\n&quot;
+  printf &quot;restricted constant and restricted trend\n&quot;
 endif
 printf &quot;Bootstrap type: &quot;
 if b.btype == 0
@@ -289,7 +289,7 @@ elif b.btype == 4
   string btype = &quot;block-bootstrap&quot;
 endif
 printf &quot;Bootstrap replications: %d\n&quot;, b.bootrep
-printf &quot;\nInitial test statistics = %.3f\n&quot;, b.teststat
+printf &quot;\nTest statistics = %.3f\n&quot;, b.teststat
 printf &quot;\nCritical values:\n       1pct.  \t 5pct.  \t 10pct.\n&quot;
 printf &quot;%12.3f\n&quot;, b.crit'
 printf &quot;Bootstrap p-value = %.3f\n&quot;, b.pvboot
@@ -381,13 +381,13 @@ if RUN_EXAMPLE == 1
 
    # Run the bootstrap version based on the ARDL
    list xlist = LRY IBO IDE
-   list rxlist = const time
+   list rxlist = const #time
    scalar pq = 2
    scalar condARDL = FALSE	# FALSE=unconditional, TRUE=conditional ARDL
    # 0=unrestr. const., 1=restrc. const., 2=restr. const + restr. trend
-   scalar case = 2
+   scalar case = 1
    # 0=parametric, 1=non-param, 2=wild, 3=wild+Rademacher distrib., 4=block-boot
-   scalar btype = 3
+   scalar btype = 4
    scalar bootrep = 999
    scalar failstop = 0.2
    scalar which = 1			  # 0=BDM, 1=PSS test
